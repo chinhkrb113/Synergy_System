@@ -112,35 +112,6 @@ flowchart LR
 
 ---
 
-## Project Structure
-
-```
-CRM_system_app/
-├─ apps/
-│  ├─ web/                 # Next.js frontend
-│  └─ api-gateway/         # NestJS API gateway
-├─ services/
-│  ├─ acquisition-svc/     # Leads & conversations
-│  ├─ learning-svc/        # Training (placeholder)
-│  ├─ enterprise-svc/      # Enterprise (placeholder)
-│  └─ ops-svc/             # Ops/Monitoring (placeholder)
-├─ ai/
-│  ├─ lead_scoring/        # ML scoring (placeholder)
-│  ├─ jd_parser/           # NLP parser (placeholder)
-│  └─ auto_grader/         # Automated grading (placeholder)
-├─ packages/
-│  ├─ ui/                  # Shared UI components
-│  ├─ config/              # Env & configuration
-│  └─ types/               # Shared TS types
-├─ infra/
-│  ├─ docker-compose.yml   # Full infra
-│  ├─ seed/                # Seed data
-│  ├─ openapi/             # API specifications
-│  └─ events/              # Event schemas
-└─ docs/
-   ├─ ARCHITECTURE.md
-   └─ RUNBOOK.md
-```
 
 ---
 
