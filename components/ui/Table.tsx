@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { cn } from '../../lib/utils';
+import { ChevronsUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
@@ -47,18 +48,32 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
 );
 TableRow.displayName = 'TableRow';
 
-const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<HTMLTableCellElement>>(
-  ({ className, ...props }, ref) => (
-    <th
-      ref={ref}
-      className={cn(
-        'h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0',
-        className
-      )}
-      {...props}
-    />
-  )
-);
+const TableHead = React.forwardRef<
+  HTMLTableCellElement,
+  React.ThHTMLAttributes<HTMLTableCellElement> & { isSorted?: 'ascending' | 'descending' | false }
+>(({ className, children, isSorted, ...props }, ref) => (
+  <th
+    ref={ref}
+    className={cn(
+      'h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0',
+      props.onClick ? 'cursor-pointer hover:bg-muted/50 transition-colors' : '',
+      className
+    )}
+    {...props}
+  >
+    <div className="flex items-center gap-2">
+      {children}
+      {props.onClick &&
+        (isSorted === 'ascending' ? (
+          <ArrowUp className="h-4 w-4" />
+        ) : isSorted === 'descending' ? (
+          <ArrowDown className="h-4 w-4" />
+        ) : (
+          <ChevronsUpDown className="h-4 w-4 opacity-50" />
+        ))}
+    </div>
+  </th>
+));
 TableHead.displayName = 'TableHead';
 
 const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(

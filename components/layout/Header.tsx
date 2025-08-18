@@ -1,14 +1,14 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Search, PlusCircle, Sun, Moon, Globe, LogOut, UserCheck, Settings } from 'lucide-react';
+import { Menu, Search, PlusCircle, Globe, LogOut, UserCheck, Settings } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent, DropdownMenuSeparator } from '../ui/DropdownMenu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '../ui/DropdownMenu';
 import { ThemeToggle } from '../ThemeToggle';
 import { useI18n } from '../../hooks/useI18n';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
+import NotificationBell from '../NotificationBell';
 
 function Header({ onMenuClick }: { onMenuClick: () => void }): React.ReactNode {
   const { t, setLanguage, language } = useI18n();
@@ -39,6 +39,8 @@ function Header({ onMenuClick }: { onMenuClick: () => void }): React.ReactNode {
       <Button size="icon" variant="ghost" className="rounded-full">
         <PlusCircle className="h-5 w-5" />
       </Button>
+
+      {(user.role === UserRole.STUDENT || user.role === UserRole.COMPANY_USER) && <NotificationBell />}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -90,13 +92,26 @@ function Header({ onMenuClick }: { onMenuClick: () => void }): React.ReactNode {
                 <span>{t('settings')}</span>
             </DropdownMenuItem>
           )}
-          {user.role === UserRole.ADMIN && (
+           {user.role === UserRole.ADMIN && (
+            <>
+              <DropdownMenuItem onClick={() => navigate('/profile/settings')}>
+                  <UserCheck className="mr-2 h-4 w-4" />
+                  <span>{t('profile')}</span>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/ops/settings')}>
                   <Settings className="mr-2 h-4 w-4" />
                   <span>{t('settings')}</span>
               </DropdownMenuItem>
+            </>
           )}
-          {(user.role === UserRole.STUDENT || user.role === UserRole.ADMIN || user.role === UserRole.MENTOR) && <DropdownMenuSeparator />}
+          {(user.role === UserRole.AGENT || user.role === UserRole.COMPANY_USER) && (
+             <DropdownMenuItem onClick={() => navigate('/profile/settings')}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>{t('settings')}</span>
+            </DropdownMenuItem>
+          )}
+
+          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout} className="text-destructive">
              <LogOut className="mr-2 h-4 w-4" />
             <span>{t('logout')}</span>

@@ -1,4 +1,6 @@
 
+
+
 export enum LeadTier { 
   HOT = 'HOT', 
   WARM = 'WARM', 
@@ -14,12 +16,21 @@ export enum LeadStatus {
   CLOSED = 'CLOSED' 
 }
 
+export enum LeadClassification {
+  STUDENT = 'STUDENT',
+  INTERN = 'INTERN',
+  ENTERPRISE = 'ENTERPRISE',
+  LECTURER = 'LECTURER',
+  UNIVERSITY = 'UNIVERSITY',
+  PARTNER = 'PARTNER',
+}
+
 export interface Lead {
   id: string;
   name: string;
   email: string;
   source: string;
-  assignee: {
+  assignee?: {
     name: string;
     avatarUrl: string;
   };
@@ -27,6 +38,7 @@ export interface Lead {
   tier: LeadTier;
   status: LeadStatus;
   createdAt: string;
+  classification?: LeadClassification;
 }
 
 export enum StudentStatus {
@@ -45,9 +57,12 @@ export interface Student {
   status: StudentStatus;
   joinDate: string;
   skills: string[];
-  teamId?: string;
+  teamIds?: string[];
   skillMap?: { [key: string]: number }; // Added for Phase 3
   age?: number;
+  phone?: string;
+  address?: string;
+  nationalId?: string;
 }
 
 export enum TaskStatus {
@@ -135,6 +150,10 @@ export interface User {
   avatarUrl: string;
   role: UserRole;
   age?: number;
+  phone?: string;
+  address?: string;
+  nationalId?: string;
+  companyName?: string;
 }
 
 export type TeamStatus = 'Planning' | 'In Progress' | 'Completed';
@@ -161,13 +180,44 @@ export interface JobPosting {
 }
 
 // Added for Phase 3
+export enum InterviewStatus {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED',
+  DECLINED = 'DECLINED',
+}
+
+// Added for Phase 3
 export interface Interview {
   id: string;
   jobId: string;
+  jobTitle: string;
   candidateId: string;
   companyName: string;
   scheduledTime: string;
+  location: string;
+  status: InterviewStatus;
 }
+
+export interface Notification {
+  id: string;
+  userId: string;
+  titleKey: string;
+  messageKey: string;
+  messageParams?: Record<string, string | number>;
+  timestamp: string;
+  isRead: boolean;
+  link?: string;
+  interviewId?: string;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  industry: string;
+  contactEmail: string;
+  createdAt: string;
+}
+
 
 // Added for Phase 3
 export type SkillMap = { skill: string; score: number }[];

@@ -11,9 +11,10 @@ interface JobFormModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (data: Omit<JobPosting, 'id' | 'postedDate' | 'matchCount' | 'status'>) => void;
+    isCompanyUser: boolean;
 }
 
-function JobFormModal({ isOpen, onClose, onSave }: JobFormModalProps) {
+function JobFormModal({ isOpen, onClose, onSave, isCompanyUser }: JobFormModalProps) {
     const { t } = useI18n();
     const [title, setTitle] = useState('');
     const [companyName, setCompanyName] = useState('');
@@ -34,15 +35,17 @@ function JobFormModal({ isOpen, onClose, onSave }: JobFormModalProps) {
                     <DialogDescription>{t('addNewJob')}</DialogDescription>
                 </DialogHeader>
                 <DialogContent className="space-y-4">
-                     <div className="grid grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="title">{t('jobTitle')}</Label>
                             <Input id="title" value={title} onChange={e => setTitle(e.target.value)} required />
                         </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="companyName">Company Name</Label>
-                            <Input id="companyName" value={companyName} onChange={e => setCompanyName(e.target.value)} required />
-                        </div>
+                         {!isCompanyUser && (
+                            <div className="space-y-2">
+                                <Label htmlFor="companyName">Company Name</Label>
+                                <Input id="companyName" value={companyName} onChange={e => setCompanyName(e.target.value)} required />
+                            </div>
+                         )}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="description">{t('jobDescription')}</Label>
@@ -58,7 +61,7 @@ function JobFormModal({ isOpen, onClose, onSave }: JobFormModalProps) {
                 </DialogContent>
                 <DialogFooter>
                     <Button type="button" variant="ghost" onClick={onClose}>{t('cancel')}</Button>
-                    <Button type="submit" disabled={!title || !companyName || !description}>{t('save')}</Button>
+                    <Button type="submit" disabled={!title || (!isCompanyUser && !companyName) || !description}>{t('save')}</Button>
                 </DialogFooter>
             </form>
         </Dialog>

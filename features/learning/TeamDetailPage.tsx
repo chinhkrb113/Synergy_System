@@ -1,22 +1,21 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useI18n } from '../../hooks/useI18n';
-import { getTeamById, getTasksForTeam, updateTask } from '../../services/mockApi';
-import { Team, Student, TeamStatus, UserRole, TeamTask, UpdateTaskData } from '../../types';
-import { ArrowLeft, User, Briefcase, Users, CheckCircle, Clock } from 'lucide-react';
+import { getTeamById, getTasksForTeam } from '../../services/mockApi';
+import { Team, Student, TeamStatus, UserRole, TeamTask } from '../../types';
+import { ArrowLeft, User, Briefcase, Users, CheckCircle, Clock, MoreHorizontal } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../../components/ui/DropdownMenu';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
-import { useToast } from '../../hooks/useToast';
 import TeamTasksList from './components/TeamTasksList';
-import ManageTeamMembersModal from './components/ManageTeamMembersModal';
 import AssignTaskModal from './components/AssignTaskModal';
 import MentorTeamTasksList from './components/MentorTeamTasksList';
-import EditTaskModal from './components/EditTaskModal';
+import EvaluateMemberModal from './components/EvaluateMemberModal';
 
 
 const statusInfoMap: Record<TeamStatus, { icon: React.ElementType, color: string }> = {
@@ -28,15 +27,13 @@ const statusInfoMap: Record<TeamStatus, { icon: React.ElementType, color: string
 function TeamDetailPage() {
     const { t } = useI18n();
     const { user } = useAuth();
-    const { toast } = useToast();
+    const navigate = useNavigate();
     const { teamId } = useParams<{ teamId: string }>();
     const [team, setTeam] = useState<Team | null>(null);
     const [teamTasks, setTeamTasks] = useState<TeamTask[] | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isManageMembersOpen, setManageMembersOpen] = useState(false);
     const [isAssignTaskOpen, setAssignTaskOpen] = useState(false);
-    const [editingTask, setEditingTask] = useState<TeamTask | null>(null);
-
+    const [evaluatingStudent, setEvaluatingStudent] = useState<Student | null>(null);
 
     const fetchTeamData = async () => {
         if (teamId) {
@@ -55,34 +52,28 @@ function TeamDetailPage() {
         fetchTeamData();
     }, [teamId, user]);
     
-    const handleTeamUpdate = async () => {
-        if(teamId) {
-            const updatedTeamData = await getTeamById(teamId);
-            setTeam(updatedTeamData);
-        }
-    }
-    
-    const handleTaskUpdate = async (taskId: string, data: UpdateTaskData) => {
-        const updatedTask = await updateTask(taskId, data);
-        if (updatedTask) {
-            if (teamId) {
-                const tasks = await getTasksForTeam(teamId);
-                setTeamTasks(tasks);
-            }
-            toast({ title: "Success", description: `Task "${updatedTask.title}" updated.`, variant: 'success' });
-        } else {
-             toast({ title: "Error", description: `Failed to update task.`, variant: 'destructive' });
-        }
-        setEditingTask(null);
-    };
 
     const renderMember = (member: Student) => (
         <li key={member.id} className="flex items-center gap-4 p-3 hover:bg-muted rounded-lg">
             <img src={member.avatarUrl} alt={member.name} className="h-12 w-12 rounded-full" />
-            <div>
+            <div className="flex-1">
                 <p className="font-semibold">{member.name} {member.id === team?.leader.id && <Badge variant="secondary" className="ml-2">Leader</Badge>}</p>
                 <p className="text-sm text-muted-foreground">{member.email}</p>
             </div>
+             {user?.role === UserRole.MENTOR && (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4"/>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setEvaluatingStudent(member)}>
+                            {t('evaluate')}
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
         </li>
     );
 
@@ -125,7 +116,7 @@ function TeamDetailPage() {
                      <div className="flex items-center gap-2">
                         {user?.role === UserRole.MENTOR && (
                             <>
-                                <Button variant="outline" onClick={() => setManageMembersOpen(true)}>{t('manageMembers')}</Button>
+                                <Button variant="outline" onClick={() => navigate(`/learning/teams/${team.id}/edit`)}>{t('editTeam')}</Button>
                                 <Button onClick={() => setAssignTaskOpen(true)}>{t('assignTask')}</Button>
                             </>
                         )}
@@ -178,31 +169,27 @@ function TeamDetailPage() {
             )}
             
             {user?.role === UserRole.MENTOR && teamTasks && (
-                <MentorTeamTasksList tasks={teamTasks} onEditTask={setEditingTask} />
+                <MentorTeamTasksList tasks={teamTasks} />
             )}
             
             {team && (
-                <>
-                    <ManageTeamMembersModal
-                        isOpen={isManageMembersOpen}
-                        onClose={() => setManageMembersOpen(false)}
-                        team={team}
-                        onTeamUpdate={handleTeamUpdate}
-                    />
-                    <AssignTaskModal
-                        isOpen={isAssignTaskOpen}
-                        onClose={() => setAssignTaskOpen(false)}
-                        team={team}
-                    />
-                    {editingTask && (
-                        <EditTaskModal 
-                            isOpen={!!editingTask}
-                            onClose={() => setEditingTask(null)}
-                            task={editingTask}
-                            onSave={handleTaskUpdate}
-                        />
-                    )}
-                </>
+                <AssignTaskModal
+                    isOpen={isAssignTaskOpen}
+                    onClose={() => setAssignTaskOpen(false)}
+                    team={team}
+                />
+            )}
+
+            {evaluatingStudent && (
+                <EvaluateMemberModal
+                    isOpen={!!evaluatingStudent}
+                    onClose={() => setEvaluatingStudent(null)}
+                    student={evaluatingStudent}
+                    onSuccess={() => {
+                        fetchTeamData();
+                        setEvaluatingStudent(null);
+                    }}
+                />
             )}
         </div>
     );

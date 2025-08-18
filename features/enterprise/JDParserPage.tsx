@@ -77,7 +77,12 @@ function JDParserPage(): React.ReactNode {
                 },
             });
 
-            const jsonStr = response.text;
+            let jsonStr = response.text.trim();
+            if (jsonStr.startsWith("```json")) {
+                jsonStr = jsonStr.substring(7, jsonStr.length - 3).trim();
+            } else if (jsonStr.startsWith("```")) {
+                jsonStr = jsonStr.substring(3, jsonStr.length - 3).trim();
+            }
             
             const data: ParsedJd = JSON.parse(jsonStr);
             setParsedData(data);

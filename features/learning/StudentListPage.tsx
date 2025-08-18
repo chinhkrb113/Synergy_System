@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
 import { StudentsTable } from './components/StudentsTable';
@@ -8,15 +9,19 @@ import StudentFormModal from './components/StudentFormModal';
 import { AlertDialog } from '../../components/ui/AlertDialog';
 import { Download, PlusCircle } from 'lucide-react';
 import { useI18n } from '../../hooks/useI18n';
-import { getStudents, createStudent, updateStudent, deleteStudent } from '../../services/mockApi';
+import { getStudents, createStudent, deleteStudent } from '../../services/mockApi';
 import { Student } from '../../types';
+
+type SortDirection = 'ascending' | 'descending';
+type SortConfig = { key: keyof Student; direction: SortDirection };
 
 function StudentListPage(): React.ReactNode {
     const { t } = useI18n();
+    const navigate = useNavigate();
     const [students, setStudents] = useState<Student[] | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingStudent, setEditingStudent] = useState<Partial<Student> | null>(null);
     const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'joinDate', direction: 'descending' });
 
     useEffect(() => {
         const fetchStudents = async () => {
@@ -26,14 +31,35 @@ function StudentListPage(): React.ReactNode {
         fetchStudents();
     }, []);
 
+    const sortedStudents = useMemo(() => {
+        if (!students) return null;
+        const sortableItems = [...students];
+        sortableItems.sort((a, b) => {
+            if (a[sortConfig.key] < b[sortConfig.key]) {
+                return sortConfig.direction === 'ascending' ? -1 : 1;
+            }
+            if (a[sortConfig.key] > b[sortConfig.key]) {
+                return sortConfig.direction === 'ascending' ? 1 : -1;
+            }
+            return 0;
+        });
+        return sortableItems;
+    }, [students, sortConfig]);
+
+    const requestSort = (key: keyof Student) => {
+        let direction: SortDirection = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+
     const handleAddClick = () => {
-        setEditingStudent(null);
         setIsModalOpen(true);
     };
 
     const handleEditClick = (student: Student) => {
-        setEditingStudent(student);
-        setIsModalOpen(true);
+        navigate(`/learning/students/${student.id}/edit`);
     };
 
     const handleDeleteClick = (studentId: string) => {
@@ -42,18 +68,8 @@ function StudentListPage(): React.ReactNode {
 
     const handleSaveStudent = async (studentData: Omit<Student, 'id' | 'joinDate' | 'avatarUrl' | 'progress'>) => {
         setIsModalOpen(false);
-        if (editingStudent && 'id' in editingStudent) {
-            // Edit existing student
-            const updated = await updateStudent(editingStudent.id!, studentData);
-            if (updated) {
-                 setStudents(prevStudents => prevStudents!.map(s => s.id === updated.id ? updated : s));
-            }
-        } else {
-            // Add new student
-            const newStudent = await createStudent(studentData);
-            setStudents(prevStudents => [newStudent, ...prevStudents!]);
-        }
-        setEditingStudent(null);
+        const newStudent = await createStudent(studentData);
+        setStudents(prevStudents => [newStudent, ...prevStudents!]);
     };
 
     const confirmDelete = async () => {
@@ -87,7 +103,7 @@ function StudentListPage(): React.ReactNode {
             
             <Card className="shadow-lg">
                 <CardContent className="pt-6">
-                    <StudentsTable students={students} onEdit={handleEditClick} onDelete={handleDeleteClick} />
+                    <StudentsTable students={sortedStudents} onEdit={handleEditClick} onDelete={handleDeleteClick} requestSort={requestSort} sortConfig={sortConfig} />
                 </CardContent>
             </Card>
 
@@ -95,7 +111,7 @@ function StudentListPage(): React.ReactNode {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSave={handleSaveStudent}
-                student={editingStudent}
+                student={null}
             />
 
             <AlertDialog

@@ -1,6 +1,8 @@
 
+
+
 import React from 'react';
-import { Lead, LeadTier, LeadStatus } from '../../../types';
+import { Lead, LeadTier, LeadStatus, LeadClassification } from '../../../types';
 import {
   Table,
   TableHeader,
@@ -32,26 +34,51 @@ const statusColorMap: Record<LeadStatus, string> = {
     [LeadStatus.CLOSED]: 'bg-red-500',
 };
 
+const classificationColorMap: Record<LeadClassification, string> = {
+    [LeadClassification.STUDENT]: 'bg-green-500',
+    [LeadClassification.INTERN]: 'bg-blue-500',
+    [LeadClassification.ENTERPRISE]: 'bg-purple-500',
+    [LeadClassification.LECTURER]: 'bg-yellow-600',
+    [LeadClassification.UNIVERSITY]: 'bg-indigo-500',
+    [LeadClassification.PARTNER]: 'bg-pink-500',
+};
+
+type SortConfig = { key: string; direction: 'ascending' | 'descending' };
+
 interface LeadsTableProps {
     leads: Lead[] | null;
     onEdit: (lead: Lead) => void;
     onDelete: (leadId: string) => void;
+    requestSort: (key: string) => void;
+    sortConfig: SortConfig;
 }
 
-function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps): React.ReactNode {
+function LeadsTable({ leads, onEdit, onDelete, requestSort, sortConfig }: LeadsTableProps): React.ReactNode {
     const { t } = useI18n();
+
+    const getClassificationText = (classification?: LeadClassification) => {
+        if (!classification) return '';
+        const key = `classification${classification.charAt(0)}${classification.slice(1).toLowerCase()}`;
+        return t(key);
+    };
+
+    const getSortDirection = (key: string) => {
+        if (sortConfig.key !== key) return false;
+        return sortConfig.direction;
+    };
 
     return (
         <Table>
             <TableHeader>
                 <TableRow>
-                    <TableHead>{t('name')}</TableHead>
-                    <TableHead>{t('status')}</TableHead>
-                    <TableHead className="text-right">{t('score')}</TableHead>
-                    <TableHead>{t('tier')}</TableHead>
-                    <TableHead>{t('source')}</TableHead>
-                    <TableHead>{t('assignee')}</TableHead>
-                    <TableHead>{t('created')}</TableHead>
+                    <TableHead onClick={() => requestSort('name')} isSorted={getSortDirection('name')}>{t('name')}</TableHead>
+                    <TableHead onClick={() => requestSort('status')} isSorted={getSortDirection('status')}>{t('status')}</TableHead>
+                    <TableHead onClick={() => requestSort('classification')} isSorted={getSortDirection('classification')}>{t('classification')}</TableHead>
+                    <TableHead className="text-right" onClick={() => requestSort('score')} isSorted={getSortDirection('score')}>{t('score')}</TableHead>
+                    <TableHead onClick={() => requestSort('tier')} isSorted={getSortDirection('tier')}>{t('tier')}</TableHead>
+                    <TableHead onClick={() => requestSort('source')} isSorted={getSortDirection('source')}>{t('source')}</TableHead>
+                    <TableHead onClick={() => requestSort('assignee.name')} isSorted={getSortDirection('assignee.name')}>{t('assignee')}</TableHead>
+                    <TableHead onClick={() => requestSort('createdAt')} isSorted={getSortDirection('createdAt')}>{t('created')}</TableHead>
                     <TableHead><span className="sr-only">{t('actions')}</span></TableHead>
                 </TableRow>
             </TableHeader>
@@ -69,14 +96,27 @@ function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps): React.ReactNo
                                     <span>{lead.status}</span>
                                 </div>
                             </TableCell>
+                            <TableCell>
+                                {lead.classification ? (
+                                    <Badge className={`${classificationColorMap[lead.classification]} text-white hover:${classificationColorMap[lead.classification]}`}>
+                                        {getClassificationText(lead.classification)}
+                                    </Badge>
+                                ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                )}
+                            </TableCell>
                             <TableCell className="text-right">{lead.score.toFixed(2)}</TableCell>
                             <TableCell><Badge variant={tierVariantMap[lead.tier]}>{lead.tier}</Badge></TableCell>
                             <TableCell>{lead.source}</TableCell>
                             <TableCell>
-                                <div className="flex items-center gap-2">
-                                    <img src={lead.assignee.avatarUrl} alt={lead.assignee.name} className="h-8 w-8 rounded-full" />
-                                    <span>{lead.assignee.name}</span>
-                                </div>
+                                {lead.assignee ? (
+                                    <div className="flex items-center gap-2">
+                                        <img src={lead.assignee.avatarUrl} alt={lead.assignee.name} className="h-8 w-8 rounded-full" />
+                                        <span>{lead.assignee.name}</span>
+                                    </div>
+                                ) : (
+                                    <span className="text-muted-foreground italic">{t('unassigned')}</span>
+                                )}
                             </TableCell>
                             <TableCell>{new Date(lead.createdAt).toLocaleDateString()}</TableCell>
                             <TableCell>
@@ -99,6 +139,7 @@ function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps): React.ReactNo
                         <TableRow key={i}>
                             <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                            <TableCell><Skeleton className="h-6 w-24" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-10 ml-auto" /></TableCell>
                             <TableCell><Skeleton className="h-6 w-16" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-24" /></TableCell>

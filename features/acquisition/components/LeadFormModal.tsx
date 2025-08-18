@@ -1,11 +1,14 @@
 
+
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../../components/ui/Dialog';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Select } from '../../../components/ui/Select';
-import { Lead, LeadStatus, LeadTier } from '../../../types';
+import { Lead, LeadStatus, LeadTier, LeadClassification } from '../../../types';
+import { useI18n } from '../../../hooks/useI18n';
 
 interface LeadFormModalProps {
     isOpen: boolean;
@@ -17,6 +20,7 @@ interface LeadFormModalProps {
 const assignees = ['Alice', 'Bob', 'Charlie'];
 
 function LeadFormModal({ isOpen, onClose, onSave, lead }: LeadFormModalProps) {
+    const { t } = useI18n();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -25,6 +29,7 @@ function LeadFormModal({ isOpen, onClose, onSave, lead }: LeadFormModalProps) {
         status: LeadStatus.NEW,
         tier: LeadTier.COLD,
         assigneeName: 'Alice',
+        classification: LeadClassification.STUDENT,
     });
 
     useEffect(() => {
@@ -37,6 +42,7 @@ function LeadFormModal({ isOpen, onClose, onSave, lead }: LeadFormModalProps) {
                 status: lead.status || LeadStatus.NEW,
                 tier: lead.tier || LeadTier.COLD,
                 assigneeName: lead.assignee?.name || 'Alice',
+                classification: lead.classification || LeadClassification.STUDENT,
             });
         } else {
             // Reset for new lead
@@ -48,6 +54,7 @@ function LeadFormModal({ isOpen, onClose, onSave, lead }: LeadFormModalProps) {
                 status: LeadStatus.NEW,
                 tier: LeadTier.COLD,
                 assigneeName: 'Alice',
+                classification: LeadClassification.STUDENT,
             });
         }
     }, [lead, isOpen]);
@@ -90,6 +97,12 @@ function LeadFormModal({ isOpen, onClose, onSave, lead }: LeadFormModalProps) {
                             <Label htmlFor="score">Score</Label>
                             <Input id="score" name="score" type="number" value={formData.score} onChange={handleChange} />
                         </div>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="classification">{t('leadClassification')}</Label>
+                        <Select id="classification" name="classification" value={formData.classification} onChange={handleChange}>
+                            {Object.values(LeadClassification).map(c => <option key={c} value={c}>{t(`classification${c.charAt(0)}${c.slice(1).toLowerCase()}`)}</option>)}
+                        </Select>
                     </div>
                      <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">

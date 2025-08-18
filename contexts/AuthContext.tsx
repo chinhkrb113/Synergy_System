@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { loginUser } from '../services/mockApi';
@@ -28,14 +27,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string) => {
     setLoading(true);
     const loggedInUser = await loginUser(email);
+    setLoading(false);
+
     if (loggedInUser) {
         setUser(loggedInUser);
         localStorage.setItem('synergy-crm-user', JSON.stringify(loggedInUser));
     } else {
-        // Handle login failure
-        console.error("Login failed");
+        // Handle login failure by throwing an error to be caught by the UI
+        throw new Error("Invalid credentials");
     }
-    setLoading(false);
   };
 
   const logout = () => {

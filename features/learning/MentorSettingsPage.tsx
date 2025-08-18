@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -20,7 +21,7 @@ function MentorSettingsPage() {
     const [isSavingInfo, setIsSavingInfo] = useState(false);
     const [isSavingPassword, setIsSavingPassword] = useState(false);
 
-    const [formData, setFormData] = useState({ name: '', age: '' });
+    const [formData, setFormData] = useState({ name: '', age: '', phone: '', address: '', nationalId: '' });
     const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' });
 
     useEffect(() => {
@@ -29,7 +30,13 @@ function MentorSettingsPage() {
                 const data = await getUserById(user.id);
                 setMentor(data);
                 if (data) {
-                    setFormData({ name: data.name, age: String(data.age || '') });
+                    setFormData({ 
+                        name: data.name, 
+                        age: String(data.age || ''),
+                        phone: data.phone || '',
+                        address: data.address || '',
+                        nationalId: data.nationalId || '',
+                    });
                 }
             }
         };
@@ -52,7 +59,10 @@ function MentorSettingsPage() {
         setIsSavingInfo(true);
         const updatedUser = await updateUser(mentor.id, { 
             name: formData.name, 
-            age: Number(formData.age) 
+            age: Number(formData.age),
+            phone: formData.phone,
+            address: formData.address,
+            nationalId: formData.nationalId,
         });
         if (updatedUser) {
             // Re-login to update the user object in AuthContext
@@ -120,6 +130,20 @@ function MentorSettingsPage() {
                                 <Label htmlFor="age">{t('age')}</Label>
                                 <Input id="age" name="age" type="number" value={formData.age} onChange={handleInfoChange} />
                             </div>
+                        </div>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="phone">{t('phone')}</Label>
+                                <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInfoChange} />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="nationalId">{t('nationalId')}</Label>
+                                <Input id="nationalId" name="nationalId" value={formData.nationalId} onChange={handleInfoChange} />
+                            </div>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="address">{t('address')}</Label>
+                            <Input id="address" name="address" value={formData.address} onChange={handleInfoChange} />
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="email">{t('email')}</Label>

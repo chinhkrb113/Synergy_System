@@ -27,7 +27,7 @@ function ManageTeamMembersModal({ isOpen, onClose, team, onTeamUpdate }: ManageT
             const fetchAllStudents = async () => {
                 const data = await getStudents();
                 // Show current members and unassigned students as options
-                setAllStudents(data.filter(s => !s.teamId || s.teamId === team.id));
+                setAllStudents(data.filter(s => !s.teamIds || s.teamIds.length === 0 || s.teamIds.includes(team.id)));
             };
             fetchAllStudents();
             setSelectedMemberIds(new Set(team.members.map(m => m.id)));

@@ -1,5 +1,6 @@
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/Table';
 import { Button } from '../../../components/ui/Button';
@@ -11,7 +12,6 @@ import { TeamTask, TaskStatus } from '../../../types';
 
 interface MentorTeamTasksListProps {
     tasks: TeamTask[];
-    onEditTask: (task: TeamTask) => void;
 }
 
 const statusVariantMap: Record<TaskStatus, 'success' | 'secondary' | 'warning'> = {
@@ -20,8 +20,38 @@ const statusVariantMap: Record<TaskStatus, 'success' | 'secondary' | 'warning'> 
     [TaskStatus.PENDING]: 'warning',
 };
 
-function MentorTeamTasksList({ tasks, onEditTask }: MentorTeamTasksListProps) {
+type SortDirection = 'ascending' | 'descending';
+type SortConfig = { key: string; direction: SortDirection };
+
+function MentorTeamTasksList({ tasks }: MentorTeamTasksListProps) {
     const { t } = useI18n();
+    const navigate = useNavigate();
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'dueDate', direction: 'ascending' });
+    
+    const sortedTasks = useMemo(() => {
+        let sortableItems = [...tasks];
+        sortableItems.sort((a, b) => {
+            const valA = a[sortConfig.key];
+            const valB = b[sortConfig.key];
+            if (valA < valB) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (valA > valB) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+        return sortableItems;
+    }, [tasks, sortConfig]);
+
+    const requestSort = (key: string) => {
+        let direction: SortDirection = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortDirection = (key: string) => {
+        if (sortConfig.key !== key) return false;
+        return sortConfig.direction;
+    };
 
     return (
         <Card className="shadow-lg">
@@ -32,15 +62,15 @@ function MentorTeamTasksList({ tasks, onEditTask }: MentorTeamTasksListProps) {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>{t('taskTitle')}</TableHead>
-                            <TableHead>{t('assignedTo')}</TableHead>
-                            <TableHead>{t('status')}</TableHead>
-                            <TableHead>{t('dueDate')}</TableHead>
+                            <TableHead onClick={() => requestSort('title')} isSorted={getSortDirection('title')}>{t('taskTitle')}</TableHead>
+                            <TableHead onClick={() => requestSort('studentName')} isSorted={getSortDirection('studentName')}>{t('assignedTo')}</TableHead>
+                            <TableHead onClick={() => requestSort('status')} isSorted={getSortDirection('status')}>{t('status')}</TableHead>
+                            <TableHead onClick={() => requestSort('dueDate')} isSorted={getSortDirection('dueDate')}>{t('dueDate')}</TableHead>
                             <TableHead><span className="sr-only">{t('actions')}</span></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {tasks.length > 0 ? tasks.map(task => (
+                        {sortedTasks.length > 0 ? sortedTasks.map(task => (
                             <TableRow key={task.id}>
                                 <TableCell className="font-medium">{task.title}</TableCell>
                                 <TableCell>
@@ -61,7 +91,7 @@ function MentorTeamTasksList({ tasks, onEditTask }: MentorTeamTasksListProps) {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => onEditTask(task)}>
+                                            <DropdownMenuItem onClick={() => navigate(`/learning/teams/${task.teamId}/tasks/${task.id}/edit`)}>
                                                 {t('edit')}
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>

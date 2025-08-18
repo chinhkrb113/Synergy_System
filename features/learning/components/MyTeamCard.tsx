@@ -54,27 +54,21 @@ function MyTeamCard({ studentId }: MyTeamCardProps) {
     return (
         <Card className="shadow-lg">
             <CardHeader>
-                <CardTitle>{t('myTeam')}: <span className="text-primary">{team.name}</span></CardTitle>
+                <CardTitle>{t('myTeam')}: {team.name}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                 <div className="flex items-start space-x-3">
-                    <Briefcase className="h-5 w-5 mt-1 text-muted-foreground" />
-                    <div>
-                        <p className="text-sm font-semibold">{t('myProject')}</p>
-                        <p className="text-lg font-bold">{team.project}</p>
-                    </div>
+                <div className="space-y-1">
+                    <h4 className="font-semibold flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary"/> {t('myProject')}</h4>
+                    <p className="text-muted-foreground ml-7">{team.project}</p>
                 </div>
-                 <div className="flex items-center space-x-3">
-                    <User className="h-5 w-5 text-muted-foreground" />
-                     <div>
-                        <p className="text-sm font-semibold">{t('mentor')}</p>
-                        <p>{team.mentor}</p>
-                    </div>
+                <div className="space-y-1">
+                    <h4 className="font-semibold flex items-center gap-2"><User className="h-5 w-5 text-primary"/> {t('mentor')}</h4>
+                    <p className="text-muted-foreground ml-7">{team.mentor}</p>
                 </div>
-                <div>
-                    <p className="text-sm font-semibold mb-2">{t('teammates')}</p>
-                     <div className="flex items-center">
-                        {team.members.map((member, index) => (
+                <div className="space-y-1">
+                    <h4 className="font-semibold flex items-center gap-2"><Users className="h-5 w-5 text-primary"/> {t('teammates')}</h4>
+                    <div className="flex items-center ml-7 mt-2">
+                         {team.members.map((member, index) => (
                             <img 
                                 key={member.id} 
                                 src={member.avatarUrl} 

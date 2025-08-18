@@ -1,12 +1,12 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation, Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { useI18n } from '../../hooks/useI18n';
 import SkillRadarChart from './components/SkillRadarChart';
 import StudentProgress from './components/StudentProgress';
 import { Button } from '../../components/ui/Button';
-import { Download } from 'lucide-react';
+import { Download, ArrowLeft } from 'lucide-react';
 import { getStudentById, getStudentSkillMap } from '../../services/mockApi';
 import { Student, SkillMap } from '../../types';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -18,6 +18,8 @@ function StudentProfilePage(): React.ReactNode {
     const { t } = useI18n();
     const { studentId } = useParams<{ studentId: string }>();
     const { user } = useAuth();
+    const location = useLocation();
+    const fromJobId = location.state?.fromJobId;
     const [student, setStudent] = useState<Student | null>(null);
     const [skillMap, setSkillMap] = useState<SkillMap | null>(null);
 
@@ -65,6 +67,16 @@ function StudentProfilePage(): React.ReactNode {
 
     return (
         <div className="space-y-6">
+            {fromJobId && (
+                <Link
+                    to={`/enterprise/jobs/${fromJobId}/matches`}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-2"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    {t('backToMatches')}
+                </Link>
+            )}
+
             {renderHeader()}
             
             <div className="grid gap-6 lg:grid-cols-2">

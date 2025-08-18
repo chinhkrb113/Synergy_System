@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -8,16 +6,16 @@ import { Label } from '../../components/ui/Label';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
-import { getStudentById, updateStudent, updateUserPassword } from '../../services/mockApi';
-import { Student } from '../../types';
+import { getUserById, updateUser, updateUserPassword } from '../../services/mockApi';
+import { User } from '../../types';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Spinner } from '../../components/ui/Spinner';
 
-function StudentSettingsPage() {
-    const { user } = useAuth();
+function EditProfilePage() {
+    const { user, login } = useAuth(); // Using login to refresh user context
     const { t } = useI18n();
     const { toast } = useToast();
-    const [student, setStudent] = useState<Student | null>(null);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [isSavingInfo, setIsSavingInfo] = useState(false);
     const [isSavingPassword, setIsSavingPassword] = useState(false);
 
@@ -25,10 +23,10 @@ function StudentSettingsPage() {
     const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' });
 
     useEffect(() => {
-        const fetchStudent = async () => {
+        const fetchUser = async () => {
             if (user) {
-                const data = await getStudentById(user.id);
-                setStudent(data);
+                const data = await getUserById(user.id);
+                setCurrentUser(data);
                 if (data) {
                     setFormData({ 
                         name: data.name, 
@@ -40,7 +38,7 @@ function StudentSettingsPage() {
                 }
             }
         };
-        fetchStudent();
+        fetchUser();
     }, [user]);
 
     const handleInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,15 +53,19 @@ function StudentSettingsPage() {
 
     const handleInfoSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!student) return;
+        if (!currentUser) return;
         setIsSavingInfo(true);
-        await updateStudent(student.id, { 
+        const updatedUser = await updateUser(currentUser.id, { 
             name: formData.name, 
             age: Number(formData.age),
             phone: formData.phone,
             address: formData.address,
             nationalId: formData.nationalId,
         });
+        if (updatedUser) {
+            // Re-login to update the user object in AuthContext
+            await login(updatedUser.email);
+        }
         setIsSavingInfo(false);
         toast({
             title: "Success",
@@ -94,9 +96,9 @@ function StudentSettingsPage() {
         });
     };
 
-    if (!student) {
+    if (!currentUser) {
         return (
-            <div className="space-y-6">
+            <div className="space-y-6 max-w-4xl mx-auto">
                 <Skeleton className="h-8 w-64" />
                 <Skeleton className="h-4 w-96" />
                 <Skeleton className="h-96 w-full" />
@@ -107,7 +109,7 @@ function StudentSettingsPage() {
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">{t('studentSettings')}</h1>
+                <h1 className="text-3xl font-bold tracking-tight">{t('settings')}</h1>
                 <p className="text-muted-foreground">Manage your account information and password.</p>
             </div>
             
@@ -127,7 +129,7 @@ function StudentSettingsPage() {
                                 <Input id="age" name="age" type="number" value={formData.age} onChange={handleInfoChange} />
                             </div>
                         </div>
-                        <div className="grid sm:grid-cols-2 gap-4">
+                         <div className="grid sm:grid-cols-2 gap-4">
                              <div className="space-y-2">
                                 <Label htmlFor="phone">{t('phone')}</Label>
                                 <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInfoChange} />
@@ -143,7 +145,7 @@ function StudentSettingsPage() {
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="email">{t('email')}</Label>
-                            <Input id="email" type="email" value={student.email} disabled />
+                            <Input id="email" type="email" value={currentUser.email} disabled />
                             <CardDescription>Your email address is used for logging in and cannot be changed.</CardDescription>
                         </div>
                     </CardContent>
@@ -189,4 +191,4 @@ function StudentSettingsPage() {
     );
 }
 
-export default StudentSettingsPage;
+export default EditProfilePage;

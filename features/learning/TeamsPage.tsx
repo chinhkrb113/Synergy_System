@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
-import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useI18n } from '../../hooks/useI18n';
-import { getTeams, createTeam, updateTeam, deleteTeam } from '../../services/mockApi';
+import { getTeams, createTeam, deleteTeam } from '../../services/mockApi';
 import { Team, TeamStatus } from '../../types';
 import { PlusCircle, MoreHorizontal } from 'lucide-react';
 import TeamFormModal from './components/TeamFormModal';
@@ -19,12 +19,20 @@ const statusColorMap: Record<TeamStatus, string> = {
     'Completed': 'bg-green-500',
 };
 
+type SortDirection = 'ascending' | 'descending';
+type SortConfig = { key: string; direction: SortDirection };
+
+const getNestedValue = (obj: any, path: string) => {
+  return path.split('.').reduce((o, k) => (o || {})[k], obj);
+};
+
 function TeamsPage(): React.ReactNode {
     const { t } = useI18n();
+    const navigate = useNavigate();
     const [teams, setTeams] = useState<Team[] | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingTeam, setEditingTeam] = useState<Team | null>(null);
     const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'ascending' });
 
     useEffect(() => {
         const fetchTeams = async () => {
@@ -34,14 +42,38 @@ function TeamsPage(): React.ReactNode {
         fetchTeams();
     }, []);
 
+    const sortedTeams = useMemo(() => {
+        if (!teams) return null;
+        const sortableItems = [...teams];
+        sortableItems.sort((a, b) => {
+            const valA = sortConfig.key === 'members.length' ? a.members.length : getNestedValue(a, sortConfig.key);
+            const valB = sortConfig.key === 'members.length' ? b.members.length : getNestedValue(b, sortConfig.key);
+            if (valA < valB) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (valA > valB) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+        return sortableItems;
+    }, [teams, sortConfig]);
+
+    const requestSort = (key: string) => {
+        let direction: SortDirection = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortDirection = (key: string) => {
+        if (sortConfig.key !== key) return false;
+        return sortConfig.direction;
+    };
+
     const handleAddClick = () => {
-        setEditingTeam(null);
         setIsModalOpen(true);
     };
 
     const handleEditClick = (team: Team) => {
-        setEditingTeam(team);
-        setIsModalOpen(true);
+        navigate(`/learning/teams/${team.id}/edit`);
     };
     
     const handleDeleteClick = (team: Team) => {
@@ -56,16 +88,10 @@ function TeamsPage(): React.ReactNode {
         }
     };
 
-    const handleSaveTeam = async (teamData: Omit<Team, 'id'|'leader'|'members'> & { memberIds: string[], id?: string }) => {
-        if (teamData.id) {
-            const updated = await updateTeam(teamData.id, teamData);
-            setTeams(prev => prev!.map(t => t.id === updated.id ? updated : t));
-        } else {
-            const newTeam = await createTeam(teamData);
-            setTeams(prev => prev ? [newTeam, ...prev] : [newTeam]);
-        }
+    const handleSaveTeam = async (teamData: Omit<Team, 'id'|'leader'|'members'> & { memberIds: string[] }) => {
+        const newTeam = await createTeam(teamData);
+        setTeams(prev => prev ? [newTeam, ...prev] : [newTeam]);
         setIsModalOpen(false);
-        setEditingTeam(null);
     };
 
     return (
@@ -85,15 +111,15 @@ function TeamsPage(): React.ReactNode {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Team Name</TableHead>
-                                <TableHead>Project</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Members</TableHead>
+                                <TableHead onClick={() => requestSort('name')} isSorted={getSortDirection('name')}>Team Name</TableHead>
+                                <TableHead onClick={() => requestSort('project')} isSorted={getSortDirection('project')}>Project</TableHead>
+                                <TableHead onClick={() => requestSort('status')} isSorted={getSortDirection('status')}>Status</TableHead>
+                                <TableHead onClick={() => requestSort('members.length')} isSorted={getSortDirection('members.length')}>Members</TableHead>
                                 <TableHead><span className="sr-only">Actions</span></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {teams ? teams.map(team => (
+                            {sortedTeams ? sortedTeams.map(team => (
                                 <TableRow key={team.id}>
                                     <TableCell className="font-semibold">{team.name}</TableCell>
                                     <TableCell>{team.project}</TableCell>
@@ -120,6 +146,7 @@ function TeamsPage(): React.ReactNode {
                                                     +{team.members.length - 5}
                                                 </div>
                                             )}
+                                            <span className="ml-2 text-sm text-muted-foreground">({team.members.length})</span>
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -154,7 +181,7 @@ function TeamsPage(): React.ReactNode {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSave={handleSaveTeam}
-                team={editingTeam}
+                team={null}
             />
             
             <AlertDialog

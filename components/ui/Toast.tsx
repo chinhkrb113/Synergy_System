@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
+import { cva } from 'class-variance-authority';
 import { X, CheckCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from './Button';
@@ -35,8 +34,8 @@ const variantIcons = {
 };
 
 export interface ToastProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof toastVariants> {
+  extends React.HTMLAttributes<HTMLDivElement> {
+    variant?: 'default' | 'destructive' | 'success';
     onDismiss?: () => void;
     duration?: number;
 }

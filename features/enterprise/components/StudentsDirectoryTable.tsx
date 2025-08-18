@@ -1,6 +1,4 @@
 
-
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Student, StudentStatus } from '../../../types';
@@ -15,8 +13,6 @@ import {
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { Skeleton } from '../../../components/ui/Skeleton';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../../components/ui/DropdownMenu';
-import { MoreHorizontal } from 'lucide-react';
 import { useI18n } from '../../../hooks/useI18n';
 import { cn } from '../../../lib/utils';
 
@@ -28,21 +24,13 @@ const statusColorMap: Record<StudentStatus, string> = {
 
 type SortConfig = { key: keyof Student; direction: 'ascending' | 'descending' };
 
-interface StudentsTableProps {
+interface StudentsDirectoryTableProps {
     students: Student[] | null;
-    onEdit: (student: Student) => void;
-    onDelete: (studentId: string) => void;
     requestSort: (key: keyof Student) => void;
     sortConfig: SortConfig;
 }
 
-const ProgressBar = ({ value }: { value: number }) => (
-    <div className="w-full bg-muted rounded-full h-2.5">
-        <div className="bg-primary h-2.5 rounded-full" style={{ width: `${value}%` }}></div>
-    </div>
-);
-
-export function StudentsTable({ students, onEdit, onDelete, requestSort, sortConfig }: StudentsTableProps): React.ReactNode {
+function StudentsDirectoryTable({ students, requestSort, sortConfig }: StudentsDirectoryTableProps): React.ReactNode {
     const { t } = useI18n();
     const navigate = useNavigate();
 
@@ -61,9 +49,8 @@ export function StudentsTable({ students, onEdit, onDelete, requestSort, sortCon
                 <TableRow>
                     <TableHead onClick={() => requestSort('name')} isSorted={getSortDirection('name')}>{t('name')}</TableHead>
                     <TableHead onClick={() => requestSort('course')} isSorted={getSortDirection('course')}>{t('course')}</TableHead>
-                    <TableHead onClick={() => requestSort('progress')} isSorted={getSortDirection('progress')}>{t('progress')}</TableHead>
+                    <TableHead>{t('skills')}</TableHead>
                     <TableHead onClick={() => requestSort('status')} isSorted={getSortDirection('status')}>{t('status')}</TableHead>
-                    <TableHead onClick={() => requestSort('joinDate')} isSorted={getSortDirection('joinDate')}>{t('joinDate')}</TableHead>
                     <TableHead><span className="sr-only">{t('actions')}</span></TableHead>
                 </TableRow>
             </TableHeader>
@@ -82,9 +69,11 @@ export function StudentsTable({ students, onEdit, onDelete, requestSort, sortCon
                             </TableCell>
                             <TableCell>{student.course}</TableCell>
                             <TableCell>
-                                <div className="flex items-center gap-2">
-                                    <ProgressBar value={student.progress} />
-                                    <span className="text-sm font-medium">{student.progress}%</span>
+                                <div className="flex flex-wrap gap-1 max-w-xs">
+                                    {student.skills.slice(0, 3).map(skill => (
+                                        <Badge key={skill} variant="secondary">{skill}</Badge>
+                                    ))}
+                                    {student.skills.length > 3 && <Badge variant="outline">+{student.skills.length - 3}</Badge>}
                                 </div>
                             </TableCell>
                             <TableCell>
@@ -93,20 +82,10 @@ export function StudentsTable({ students, onEdit, onDelete, requestSort, sortCon
                                     <span>{student.status}</span>
                                 </div>
                             </TableCell>
-                            <TableCell>{new Date(student.joinDate).toLocaleDateString()}</TableCell>
-                            <TableCell>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon">
-                                            <MoreHorizontal className="h-4 w-4"/>
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleViewProfile(student.id)}>{t('viewProfile')}</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => onEdit(student)}>{t('edit')}</DropdownMenuItem>
-                                        <DropdownMenuItem className="text-destructive" onClick={() => onDelete(student.id)}>{t('delete')}</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                            <TableCell className="text-right">
+                                <Button variant="outline" size="sm" onClick={() => handleViewProfile(student.id)}>
+                                    {t('viewProfile')}
+                                </Button>
                             </TableCell>
                         </TableRow>
                     ))
@@ -115,10 +94,9 @@ export function StudentsTable({ students, onEdit, onDelete, requestSort, sortCon
                         <TableRow key={i}>
                            <TableCell><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-40" /></div></div></TableCell>
                             <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                            <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                            <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                            <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                            <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
                         </TableRow>
                     ))
                 )}
@@ -126,3 +104,5 @@ export function StudentsTable({ students, onEdit, onDelete, requestSort, sortCon
         </Table>
     );
 }
+
+export default StudentsDirectoryTable;

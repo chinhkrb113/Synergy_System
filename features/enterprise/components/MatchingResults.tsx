@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MatchingCandidate, JobPosting } from '../../../types';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
@@ -10,6 +9,7 @@ import { useI18n } from '../../../hooks/useI18n';
 import { useToast } from '../../../hooks/useToast';
 import { requestInterview } from '../../../services/mockApi';
 import { Spinner } from '../../../components/ui/Spinner';
+import RequestInterviewModal from './RequestInterviewModal';
 
 const ProgressBar = ({ value }: { value: number }) => (
     <div className="w-full bg-muted rounded-full h-2">
@@ -22,20 +22,57 @@ interface MatchingResultsProps {
     job?: JobPosting | null;
 }
 
+type SortDirection = 'ascending' | 'descending';
+type SortConfig = { key: keyof MatchingCandidate; direction: SortDirection };
+
 function MatchingResults({ candidates, job }: MatchingResultsProps) {
     const { t } = useI18n();
     const navigate = useNavigate();
     const { toast } = useToast();
     const [requestingId, setRequestingId] = useState<string | null>(null);
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'matchScore', direction: 'descending' });
+    const [interviewCandidate, setInterviewCandidate] = useState<MatchingCandidate | null>(null);
 
-    const handleRequestInterview = async (candidate: MatchingCandidate) => {
-        if (!job) return;
-        setRequestingId(candidate.id);
+    const sortedCandidates = useMemo(() => {
+        let sortableItems = [...candidates];
+        sortableItems.sort((a, b) => {
+            if (a[sortConfig.key] < b[sortConfig.key]) {
+                return sortConfig.direction === 'ascending' ? -1 : 1;
+            }
+            if (a[sortConfig.key] > b[sortConfig.key]) {
+                return sortConfig.direction === 'ascending' ? 1 : -1;
+            }
+            return 0;
+        });
+        return sortableItems;
+    }, [candidates, sortConfig]);
+
+    const requestSort = (key: keyof MatchingCandidate) => {
+        let direction: SortDirection = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+    
+    const getSortDirection = (key: keyof MatchingCandidate) => {
+        if (sortConfig.key !== key) return false;
+        return sortConfig.direction;
+    };
+
+
+    const handleRequestInterview = (candidate: MatchingCandidate) => {
+        setInterviewCandidate(candidate);
+    };
+
+    const confirmRequestInterview = async (details: { scheduledTime: string; location: string }) => {
+        if (!job || !interviewCandidate) return;
+        setRequestingId(interviewCandidate.id);
         try {
-            await requestInterview(job.id, candidate.id, job.companyName);
+            await requestInterview(job.id, interviewCandidate.id, job.companyName, details.scheduledTime, details.location);
             toast({
                 title: "Success!",
-                description: t('interviewScheduledSuccess', { candidateName: candidate.name }),
+                description: t('interviewScheduledSuccess', { candidateName: interviewCandidate.name }),
                 variant: 'success'
             });
         } catch (error) {
@@ -46,8 +83,10 @@ function MatchingResults({ candidates, job }: MatchingResultsProps) {
             });
         } finally {
             setRequestingId(null);
+            setInterviewCandidate(null);
         }
     };
+
 
     if (candidates.length === 0) {
         return (
@@ -63,6 +102,7 @@ function MatchingResults({ candidates, job }: MatchingResultsProps) {
     }
     
     return (
+        <>
         <Card className="shadow-lg mt-6 animate-in fade-in-50 duration-500">
             <CardHeader>
                 <CardTitle>{t('matchingCandidates')}</CardTitle>
@@ -71,14 +111,14 @@ function MatchingResults({ candidates, job }: MatchingResultsProps) {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>{t('name')}</TableHead>
-                            <TableHead className="w-[150px]">{t('matchScore')}</TableHead>
+                            <TableHead onClick={() => requestSort('name')} isSorted={getSortDirection('name')}>{t('name')}</TableHead>
+                            <TableHead className="w-[150px]" onClick={() => requestSort('matchScore')} isSorted={getSortDirection('matchScore')}>{t('matchScore')}</TableHead>
                             <TableHead>{t('matchingSkills')}</TableHead>
                             <TableHead className="text-right"><span className="sr-only">{t('actions')}</span></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {candidates.map(candidate => {
+                        {sortedCandidates.map(candidate => {
                             const isRequesting = requestingId === candidate.id;
                             return (
                                 <TableRow key={candidate.id}>
@@ -106,12 +146,11 @@ function MatchingResults({ candidates, job }: MatchingResultsProps) {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex gap-2 justify-end">
-                                            <Button variant="outline" size="sm" onClick={() => navigate(`/learning/students/${candidate.id}`)}>
+                                            <Button variant="outline" size="sm" onClick={() => navigate(`/learning/students/${candidate.id}`, { state: { fromJobId: job?.id } })}>
                                                 {t('viewProfile')}
                                             </Button>
                                             <Button size="sm" onClick={() => handleRequestInterview(candidate)} disabled={isRequesting}>
-                                                {isRequesting && <Spinner className="mr-2 h-4 w-4" />}
-                                                {isRequesting ? t('requestingInterview') : t('requestInterview')}
+                                                {t('requestInterview')}
                                             </Button>
                                         </div>
                                     </TableCell>
@@ -122,6 +161,16 @@ function MatchingResults({ candidates, job }: MatchingResultsProps) {
                 </Table>
             </CardContent>
         </Card>
+         {interviewCandidate && (
+                <RequestInterviewModal
+                    isOpen={!!interviewCandidate}
+                    onClose={() => setInterviewCandidate(null)}
+                    onConfirm={confirmRequestInterview}
+                    candidate={interviewCandidate}
+                    isRequesting={requestingId === interviewCandidate.id}
+                />
+            )}
+        </>
     );
 }
 

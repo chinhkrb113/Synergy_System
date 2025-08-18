@@ -1,39 +1,76 @@
 
+
+
 import React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
 import LeadsTable from './components/LeadsTable';
 import LeadFormModal from './components/LeadFormModal';
 import { Download, PlusCircle } from 'lucide-react';
 import { useI18n } from '../../hooks/useI18n';
-import { getLeads, createLead, updateLead, deleteLead } from '../../services/mockApi';
-import { Lead } from '../../types';
+import { getLeads, createLead, deleteLead } from '../../services/mockApi';
+import { Lead, UserRole } from '../../types';
 import { AlertDialog } from '../../components/ui/AlertDialog';
+import { useAuth } from '../../contexts/AuthContext';
+
+type SortDirection = 'ascending' | 'descending';
+type SortConfig = { key: string; direction: SortDirection };
+
+const getNestedValue = (obj: any, path: string) => {
+  return path.split('.').reduce((o, k) => (o || {})[k], obj);
+};
 
 function LeadsPage(): React.ReactNode {
     const { t } = useI18n();
+    const navigate = useNavigate();
+    const { user } = useAuth();
     const [leads, setLeads] = useState<Lead[] | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingLead, setEditingLead] = useState<Partial<Lead> | null>(null);
     const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'createdAt', direction: 'descending' });
+
+    const isAgent = user?.role === UserRole.AGENT;
+    const title = isAgent ? t('myLeads') : t('allLeads');
+    const description = isAgent ? t('myLeadsDesc') : 'Manage and track all potential customers.';
 
     useEffect(() => {
         const fetchLeads = async () => {
-            const data = await getLeads();
+            const agentName = user?.role === UserRole.AGENT ? user.name : undefined;
+            const data = await getLeads(agentName);
             setLeads(data);
         };
         fetchLeads();
-    }, []);
+    }, [user]);
+    
+    const sortedLeads = useMemo(() => {
+        if (!leads) return null;
+        const sortableItems = [...leads];
+        sortableItems.sort((a, b) => {
+            const valA = getNestedValue(a, sortConfig.key);
+            const valB = getNestedValue(b, sortConfig.key);
+            if (valA < valB) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (valA > valB) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+        return sortableItems;
+    }, [leads, sortConfig]);
+
+    const requestSort = (key: string) => {
+        let direction: SortDirection = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
 
     const handleAddClick = () => {
-        setEditingLead(null);
         setIsModalOpen(true);
     };
 
     const handleEditClick = (lead: Lead) => {
-        setEditingLead(lead);
-        setIsModalOpen(true);
+        navigate(`/acquisition/leads/${lead.id}/edit`);
     };
 
     const handleDeleteClick = (leadId: string) => {
@@ -42,18 +79,8 @@ function LeadsPage(): React.ReactNode {
 
     const handleSaveLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'assignee'> & { assigneeName: string }) => {
         setIsModalOpen(false);
-        if (editingLead && 'id' in editingLead) {
-            // Edit existing lead
-            const updated = await updateLead(editingLead.id!, leadData);
-            if (updated) {
-                 setLeads(prevLeads => prevLeads!.map(l => l.id === updated.id ? updated : l));
-            }
-        } else {
-            // Add new lead
-            const newLead = await createLead(leadData);
-            setLeads(prevLeads => [newLead, ...prevLeads!]);
-        }
-        setEditingLead(null);
+        const newLead = await createLead(leadData);
+        setLeads(prevLeads => [newLead, ...prevLeads!]);
     };
     
     const confirmDelete = async () => {
@@ -70,8 +97,8 @@ function LeadsPage(): React.ReactNode {
         <div className="space-y-6">
              <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">{t('allLeads')}</h1>
-                    <p className="text-muted-foreground">Manage and track all potential customers.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+                    <p className="text-muted-foreground">{description}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button variant="outline">
@@ -87,7 +114,7 @@ function LeadsPage(): React.ReactNode {
             
             <Card className="shadow-lg">
                 <CardContent className="pt-6">
-                    <LeadsTable leads={leads} onEdit={handleEditClick} onDelete={handleDeleteClick} />
+                    <LeadsTable leads={sortedLeads} onEdit={handleEditClick} onDelete={handleDeleteClick} requestSort={requestSort} sortConfig={sortConfig} />
                 </CardContent>
             </Card>
 
@@ -95,7 +122,7 @@ function LeadsPage(): React.ReactNode {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSave={handleSaveLead}
-                lead={editingLead}
+                lead={null}
             />
 
             <AlertDialog

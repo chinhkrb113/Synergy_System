@@ -31,4 +31,4 @@ Access: Students list, own profile, Teams.
 
 Role: COMPANY_USER (Nhà tuyển dụng)
 Email: company@example.com
-Access: Job Postings, JD Parser.
+Access:
