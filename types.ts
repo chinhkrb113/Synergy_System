@@ -1,6 +1,4 @@
 
-
-
 export enum LeadTier { 
   HOT = 'HOT', 
   WARM = 'WARM', 
@@ -29,16 +27,42 @@ export interface Lead {
   id: string;
   name: string;
   email: string;
+  phone?: string;
+  dob?: string;
+  gender?: 'Male' | 'Female' | 'Other';
+  contactAddress?: string;
+  nationalId?: string;
+  nationalIdPhotoUrl?: string;
+  idIssueDate?: string;
+  idIssuePlace?: string;
+  permanentAddress?: string;
   source: string;
   assignee?: {
     name: string;
     avatarUrl: string;
   };
-  score: number;
   tier: LeadTier;
   status: LeadStatus;
+  score?: number;
   createdAt: string;
+  updatedAt?: string;
   classification?: LeadClassification;
+  demographics?: {
+    age: number;
+    location: string;
+    education: string;
+  };
+  webBehaviors?: {
+    pagesVisited: number;
+    timeOnSiteMinutes: number;
+    formSubmissions: number;
+    clickedAds: boolean;
+  };
+  lastMessage?: string;
+  aiAnalysis?: {
+    score: number; // The 0-1 score from AI
+    topFeatures: { feature: string; impact: 'positive' | 'negative' }[];
+  };
 }
 
 export enum StudentStatus {
@@ -55,14 +79,22 @@ export interface Student {
   course: string;
   progress: number;
   status: StudentStatus;
-  joinDate: string;
+  createdAt: string;
+  updatedAt?: string;
   skills: string[];
   teamIds?: string[];
   skillMap?: { [key: string]: number }; // Added for Phase 3
-  age?: number;
+  dob?: string;
+  gender?: 'Male' | 'Female' | 'Other';
   phone?: string;
-  address?: string;
+  contactAddress?: string;
+  permanentAddress?: string;
   nationalId?: string;
+  nationalIdPhotoUrl?: string;
+  idIssueDate?: string;
+  idIssuePlace?: string;
+  aiAssessed?: boolean;
+  score?: number;
 }
 
 export enum TaskStatus {
@@ -149,11 +181,18 @@ export interface User {
   name: string;
   avatarUrl: string;
   role: UserRole;
-  age?: number;
+  dob?: string;
+  gender?: 'Male' | 'Female' | 'Other';
   phone?: string;
-  address?: string;
+  contactAddress?: string;
+  permanentAddress?: string;
   nationalId?: string;
+  nationalIdPhotoUrl?: string;
+  idIssueDate?: string;
+  idIssuePlace?: string;
   companyName?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export type TeamStatus = 'Planning' | 'In Progress' | 'Completed';
@@ -167,6 +206,8 @@ export interface Team {
   project: string;
   projectDescription: string;
   status: TeamStatus;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface JobPosting {
@@ -174,7 +215,8 @@ export interface JobPosting {
   title: string;
   companyName: string;
   status: 'Open' | 'Closed' | 'Interviewing';
-  postedDate: string;
+  createdAt: string;
+  updatedAt?: string;
   matchCount: number;
   description: string;
 }
@@ -184,6 +226,7 @@ export enum InterviewStatus {
   PENDING = 'PENDING',
   ACCEPTED = 'ACCEPTED',
   DECLINED = 'DECLINED',
+  COMPLETED = 'COMPLETED',
 }
 
 // Added for Phase 3
@@ -192,10 +235,14 @@ export interface Interview {
   jobId: string;
   jobTitle: string;
   candidateId: string;
+  candidateName: string;
   companyName: string;
   scheduledTime: string;
   location: string;
   status: InterviewStatus;
+  interviewer?: string;
+  evaluation?: string;
+  declineReason?: string;
 }
 
 export interface Notification {
@@ -216,6 +263,7 @@ export interface Company {
   industry: string;
   contactEmail: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 

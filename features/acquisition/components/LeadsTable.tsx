@@ -1,8 +1,7 @@
 
 
-
 import React from 'react';
-import { Lead, LeadTier, LeadStatus, LeadClassification } from '../../../types';
+import { Lead, LeadTier, LeadStatus, UserRole } from '../../../types';
 import {
   Table,
   TableHeader,
@@ -14,10 +13,11 @@ import {
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { Skeleton } from '../../../components/ui/Skeleton';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../../components/ui/DropdownMenu';
-import { MoreHorizontal } from 'lucide-react';
+import { Eye, FilePenLine, Trash2, Sparkles, BarChart } from 'lucide-react';
 import { useI18n } from '../../../hooks/useI18n';
 import { cn } from '../../../lib/utils';
+import { useAuth } from '../../../contexts/AuthContext';
+import { Spinner } from '../../../components/ui/Spinner';
 
 const tierVariantMap: Record<LeadTier, 'hot' | 'warm' | 'cold'> = {
     [LeadTier.HOT]: 'hot',
@@ -34,33 +34,34 @@ const statusColorMap: Record<LeadStatus, string> = {
     [LeadStatus.CLOSED]: 'bg-red-500',
 };
 
-const classificationColorMap: Record<LeadClassification, string> = {
-    [LeadClassification.STUDENT]: 'bg-green-500',
-    [LeadClassification.INTERN]: 'bg-blue-500',
-    [LeadClassification.ENTERPRISE]: 'bg-purple-500',
-    [LeadClassification.LECTURER]: 'bg-yellow-600',
-    [LeadClassification.UNIVERSITY]: 'bg-indigo-500',
-    [LeadClassification.PARTNER]: 'bg-pink-500',
-};
-
 type SortConfig = { key: string; direction: 'ascending' | 'descending' };
 
 interface LeadsTableProps {
     leads: Lead[] | null;
+    onView: (lead: Lead) => void;
     onEdit: (lead: Lead) => void;
     onDelete: (leadId: string) => void;
     requestSort: (key: string) => void;
     sortConfig: SortConfig;
+    onAnalyze: (leadId: string) => void;
+    analyzingId: string | null;
+    onShowAnalysis: (lead: Lead) => void;
 }
 
-function LeadsTable({ leads, onEdit, onDelete, requestSort, sortConfig }: LeadsTableProps): React.ReactNode {
+export function LeadsTable({ 
+    leads, 
+    onView, 
+    onEdit, 
+    onDelete, 
+    requestSort, 
+    sortConfig, 
+    onAnalyze, 
+    analyzingId,
+    onShowAnalysis
+}: LeadsTableProps): React.ReactNode {
     const { t } = useI18n();
-
-    const getClassificationText = (classification?: LeadClassification) => {
-        if (!classification) return '';
-        const key = `classification${classification.charAt(0)}${classification.slice(1).toLowerCase()}`;
-        return t(key);
-    };
+    const { user } = useAuth();
+    const isAdminOrAgent = user?.role === UserRole.ADMIN || user?.role === UserRole.AGENT;
 
     const getSortDirection = (key: string) => {
         if (sortConfig.key !== key) return false;
@@ -73,22 +74,21 @@ function LeadsTable({ leads, onEdit, onDelete, requestSort, sortConfig }: LeadsT
                 <TableRow>
                     <TableHead onClick={() => requestSort('name')} isSorted={getSortDirection('name')}>{t('name')}</TableHead>
                     <TableHead onClick={() => requestSort('status')} isSorted={getSortDirection('status')}>{t('status')}</TableHead>
-                    <TableHead onClick={() => requestSort('classification')} isSorted={getSortDirection('classification')}>{t('classification')}</TableHead>
-                    <TableHead className="text-right" onClick={() => requestSort('score')} isSorted={getSortDirection('score')}>{t('score')}</TableHead>
                     <TableHead onClick={() => requestSort('tier')} isSorted={getSortDirection('tier')}>{t('tier')}</TableHead>
+                    <TableHead onClick={() => requestSort('score')} isSorted={getSortDirection('score')}>{t('score')}</TableHead>
                     <TableHead onClick={() => requestSort('source')} isSorted={getSortDirection('source')}>{t('source')}</TableHead>
                     <TableHead onClick={() => requestSort('assignee.name')} isSorted={getSortDirection('assignee.name')}>{t('assignee')}</TableHead>
                     <TableHead onClick={() => requestSort('createdAt')} isSorted={getSortDirection('createdAt')}>{t('created')}</TableHead>
-                    <TableHead><span className="sr-only">{t('actions')}</span></TableHead>
+                    <TableHead>{t('actions')}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {leads ? (
                     leads.map(lead => (
                         <TableRow key={lead.id}>
-                            <TableCell className="font-medium">
-                                <div className="font-semibold">{lead.name}</div>
-                                <div className="text-xs text-muted-foreground">{lead.email}</div>
+                            <TableCell>
+                                <div className="font-medium">{lead.name}</div>
+                                <div className="text-sm text-muted-foreground">{lead.email}</div>
                             </TableCell>
                             <TableCell>
                                 <div className="flex items-center gap-2">
@@ -96,41 +96,46 @@ function LeadsTable({ leads, onEdit, onDelete, requestSort, sortConfig }: LeadsT
                                     <span>{lead.status}</span>
                                 </div>
                             </TableCell>
+                             <TableCell><Badge variant={tierVariantMap[lead.tier]}>{lead.tier}</Badge></TableCell>
                             <TableCell>
-                                {lead.classification ? (
-                                    <Badge className={`${classificationColorMap[lead.classification]} text-white hover:${classificationColorMap[lead.classification]}`}>
-                                        {getClassificationText(lead.classification)}
-                                    </Badge>
-                                ) : (
-                                    <span className="text-muted-foreground">-</span>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold">{lead.score ?? '-'}</span>
+                                    {lead.aiAnalysis && (
+                                        <button onClick={() => onShowAnalysis(lead)} title="View AI Analysis">
+                                            <BarChart className="h-4 w-4 text-purple-400 cursor-pointer" />
+                                        </button>
+                                    )}
+                                </div>
                             </TableCell>
-                            <TableCell className="text-right">{lead.score.toFixed(2)}</TableCell>
-                            <TableCell><Badge variant={tierVariantMap[lead.tier]}>{lead.tier}</Badge></TableCell>
                             <TableCell>{lead.source}</TableCell>
                             <TableCell>
                                 {lead.assignee ? (
                                     <div className="flex items-center gap-2">
-                                        <img src={lead.assignee.avatarUrl} alt={lead.assignee.name} className="h-8 w-8 rounded-full" />
+                                        <img src={lead.assignee.avatarUrl} alt={lead.assignee.name} className="h-6 w-6 rounded-full" />
                                         <span>{lead.assignee.name}</span>
                                     </div>
                                 ) : (
-                                    <span className="text-muted-foreground italic">{t('unassigned')}</span>
+                                    <span className="text-muted-foreground">{t('unassigned')}</span>
                                 )}
                             </TableCell>
                             <TableCell>{new Date(lead.createdAt).toLocaleDateString()}</TableCell>
                             <TableCell>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon">
-                                            <MoreHorizontal className="h-4 w-4"/>
+                                <div className="flex items-center gap-0">
+                                    <Button variant="ghost" size="icon" title={t('view')} onClick={() => onView(lead)}>
+                                        <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" title={t('edit')} onClick={() => onEdit(lead)}>
+                                        <FilePenLine className="h-4 w-4" />
+                                    </Button>
+                                    {isAdminOrAgent && (
+                                        <Button variant="ghost" size="icon" title={t('analyzeWithAI')} onClick={() => onAnalyze(lead.id)} disabled={analyzingId === lead.id}>
+                                            {analyzingId === lead.id ? <Spinner className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
                                         </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => onEdit(lead)}>Edit</DropdownMenuItem>
-                                        <DropdownMenuItem className="text-destructive" onClick={() => onDelete(lead.id)}>Delete</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                    )}
+                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title={t('delete')} onClick={() => onDelete(lead.id)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </TableCell>
                         </TableRow>
                     ))
@@ -139,13 +144,12 @@ function LeadsTable({ leads, onEdit, onDelete, requestSort, sortConfig }: LeadsT
                         <TableRow key={i}>
                             <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                            <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                            <TableCell><Skeleton className="h-5 w-10 ml-auto" /></TableCell>
                             <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                            <TableCell><Skeleton className="h-5 w-12" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                            <TableCell><Skeleton className="h-8 w-36" /></TableCell>
+                            <TableCell><Skeleton className="h-6 w-24" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                            <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                            <TableCell><div className="flex justify-end gap-2"><Skeleton className="h-8 w-8" /><Skeleton className="h-8 w-8" /><Skeleton className="h-8 w-8" /></div></TableCell>
                         </TableRow>
                     ))
                 )}
@@ -153,5 +157,3 @@ function LeadsTable({ leads, onEdit, onDelete, requestSort, sortConfig }: LeadsT
         </Table>
     );
 }
-
-export default LeadsTable;

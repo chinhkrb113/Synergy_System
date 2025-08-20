@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -10,6 +10,8 @@ import { getUserById, updateUser, updateUserPassword } from '../../services/mock
 import { User } from '../../types';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Spinner } from '../../components/ui/Spinner';
+import { Select } from '../../components/ui/Select';
+import { UserCircle2 } from 'lucide-react';
 
 function EditProfilePage() {
     const { user, login } = useAuth(); // Using login to refresh user context
@@ -18,8 +20,21 @@ function EditProfilePage() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [isSavingInfo, setIsSavingInfo] = useState(false);
     const [isSavingPassword, setIsSavingPassword] = useState(false);
+    const avatarInputRef = useRef<HTMLInputElement>(null);
 
-    const [formData, setFormData] = useState({ name: '', age: '', phone: '', address: '', nationalId: '' });
+    const [formData, setFormData] = useState({
+        name: '',
+        phone: '',
+        dob: '',
+        gender: undefined as User['gender'],
+        contactAddress: '',
+        permanentAddress: '',
+        nationalId: '',
+        nationalIdPhotoUrl: '',
+        idIssueDate: '',
+        idIssuePlace: '',
+        avatarUrl: '',
+    });
     const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' });
 
     useEffect(() => {
@@ -29,11 +44,17 @@ function EditProfilePage() {
                 setCurrentUser(data);
                 if (data) {
                     setFormData({ 
-                        name: data.name, 
-                        age: String(data.age || ''),
+                        name: data.name,
                         phone: data.phone || '',
-                        address: data.address || '',
+                        dob: data.dob ? new Date(data.dob).toISOString().split('T')[0] : '',
+                        gender: data.gender || undefined,
+                        contactAddress: data.contactAddress || '',
+                        permanentAddress: data.permanentAddress || '',
                         nationalId: data.nationalId || '',
+                        nationalIdPhotoUrl: data.nationalIdPhotoUrl || '',
+                        idIssueDate: data.idIssueDate ? new Date(data.idIssueDate).toISOString().split('T')[0] : '',
+                        idIssuePlace: data.idIssuePlace || '',
+                        avatarUrl: data.avatarUrl || '',
                     });
                 }
             }
@@ -41,10 +62,26 @@ function EditProfilePage() {
         fetchUser();
     }, [user]);
 
-    const handleInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
+    
+    const handleAvatarChangeClick = () => {
+        avatarInputRef.current?.click();
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({ ...prev, avatarUrl: reader.result as string }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
 
     const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -55,13 +92,7 @@ function EditProfilePage() {
         e.preventDefault();
         if (!currentUser) return;
         setIsSavingInfo(true);
-        const updatedUser = await updateUser(currentUser.id, { 
-            name: formData.name, 
-            age: Number(formData.age),
-            phone: formData.phone,
-            address: formData.address,
-            nationalId: formData.nationalId,
-        });
+        const updatedUser = await updateUser(currentUser.id, formData);
         if (updatedUser) {
             // Re-login to update the user object in AuthContext
             await login(updatedUser.email);
@@ -109,7 +140,7 @@ function EditProfilePage() {
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">{t('settings')}</h1>
+                <h1 className="text-3xl font-bold tracking-tight">{t('information')}</h1>
                 <p className="text-muted-foreground">Manage your account information and password.</p>
             </div>
             
@@ -119,34 +150,84 @@ function EditProfilePage() {
                         <CardTitle>{t('personalInformation')}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                         <div className="flex flex-col sm:flex-row items-center gap-6 pt-2 pb-4 border-b">
+                            <input type="file" ref={avatarInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                            <div className="relative">
+                                {formData.avatarUrl ? (
+                                    <img src={formData.avatarUrl} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-muted"/>
+                                ) : (
+                                    <UserCircle2 className="w-24 h-24 text-muted-foreground" />
+                                )}
+                            </div>
+                            <div className="flex-1 w-full sm:w-auto">
+                                <Button type="button" variant="outline" onClick={handleAvatarChangeClick}>
+                                    {t('change')}
+                                </Button>
+                                <CardDescription className="mt-2 text-xs">
+                                    Select an image from your device.
+                                </CardDescription>
+                            </div>
+                        </div>
                         <div className="grid sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="name">{t('fullName')}</Label>
                                 <Input id="name" name="name" value={formData.name} onChange={handleInfoChange} />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="age">{t('age')}</Label>
-                                <Input id="age" name="age" type="number" value={formData.age} onChange={handleInfoChange} />
+                             <div className="space-y-2">
+                                <Label htmlFor="email">{t('email')}</Label>
+                                <Input id="email" type="email" value={currentUser.email} disabled />
+                                <CardDescription>Your email address is used for logging in and cannot be changed.</CardDescription>
                             </div>
                         </div>
-                         <div className="grid sm:grid-cols-2 gap-4">
+                         <div className="grid sm:grid-cols-3 gap-4">
                              <div className="space-y-2">
                                 <Label htmlFor="phone">{t('phone')}</Label>
                                 <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInfoChange} />
                             </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="dob">{t('dob')}</Label>
+                                <Input id="dob" name="dob" type="date" value={formData.dob} onChange={handleInfoChange} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="gender">{t('gender')}</Label>
+                                <Select id="gender" name="gender" value={formData.gender || ''} onChange={handleInfoChange}>
+                                    <option value="" disabled>Select Gender</option>
+                                    <option value="Male">{t('male')}</option>
+                                    <option value="Female">{t('female')}</option>
+                                    <option value="Other">{t('other')}</option>
+                                </Select>
+                            </div>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="contactAddress">{t('contactAddress')}</Label>
+                            <Input id="contactAddress" name="contactAddress" value={formData.contactAddress} onChange={handleInfoChange} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="permanentAddress">{t('permanentAddress')}</Label>
+                            <Input id="permanentAddress" name="permanentAddress" value={formData.permanentAddress} onChange={handleInfoChange} />
+                        </div>
+                    </CardContent>
+                    <CardHeader>
+                         <CardTitle>{t('identificationInformation')}</CardTitle>
+                    </CardHeader>
+                     <CardContent className="space-y-4">
+                        <div className="grid sm:grid-cols-2 gap-4">
                              <div className="space-y-2">
                                 <Label htmlFor="nationalId">{t('nationalId')}</Label>
                                 <Input id="nationalId" name="nationalId" value={formData.nationalId} onChange={handleInfoChange} />
                             </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="idIssueDate">{t('idIssueDate')}</Label>
+                                <Input id="idIssueDate" name="idIssueDate" type="date" value={formData.idIssueDate} onChange={handleInfoChange} />
+                            </div>
                         </div>
                          <div className="space-y-2">
-                            <Label htmlFor="address">{t('address')}</Label>
-                            <Input id="address" name="address" value={formData.address} onChange={handleInfoChange} />
+                            <Label htmlFor="idIssuePlace">{t('idIssuePlace')}</Label>
+                            <Input id="idIssuePlace" name="idIssuePlace" value={formData.idIssuePlace} onChange={handleInfoChange} />
                         </div>
                          <div className="space-y-2">
-                            <Label htmlFor="email">{t('email')}</Label>
-                            <Input id="email" type="email" value={currentUser.email} disabled />
-                            <CardDescription>Your email address is used for logging in and cannot be changed.</CardDescription>
+                            <Label htmlFor="nationalIdPhotoUrl">{t('nationalIdPhoto')}</Label>
+                            <Input id="nationalIdPhotoUrl" name="nationalIdPhotoUrl" placeholder="Enter image URL" value={formData.nationalIdPhotoUrl} onChange={handleInfoChange} />
                         </div>
                     </CardContent>
                     <CardFooter className="border-t px-6 py-4">

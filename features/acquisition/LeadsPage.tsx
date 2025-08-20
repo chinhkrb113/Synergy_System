@@ -6,14 +6,19 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
-import LeadsTable from './components/LeadsTable';
-import LeadFormModal from './components/LeadFormModal';
-import { Download, PlusCircle } from 'lucide-react';
+import { LeadsTable } from './components/LeadsTable';
+import LeadAiAnalysisModal from './components/LeadAiAnalysisModal';
+import { Download, PlusCircle, XCircle, Search, ListFilter, Signal, Globe } from 'lucide-react';
 import { useI18n } from '../../hooks/useI18n';
-import { getLeads, createLead, deleteLead } from '../../services/mockApi';
-import { Lead, UserRole } from '../../types';
+import { getLeads, deleteLead, analyzeLead } from '../../services/mockApi';
+import { Lead, UserRole, LeadStatus, LeadTier } from '../../types';
 import { AlertDialog } from '../../components/ui/AlertDialog';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../hooks/useToast';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
+import { Pagination } from '../../components/Pagination';
+
 
 type SortDirection = 'ascending' | 'descending';
 type SortConfig = { key: string; direction: SortDirection };
@@ -26,10 +31,17 @@ function LeadsPage(): React.ReactNode {
     const { t } = useI18n();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { toast } = useToast();
     const [leads, setLeads] = useState<Lead[] | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'createdAt', direction: 'descending' });
+    const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+    const [analysisModalLead, setAnalysisModalLead] = useState<Lead | null>(null);
+
+    // New states for filtering and pagination
+    const [filters, setFilters] = useState({ search: '', status: '', tier: '', source: '' });
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
 
     const isAgent = user?.role === UserRole.AGENT;
     const title = isAgent ? t('myLeads') : t('allLeads');
@@ -43,10 +55,44 @@ function LeadsPage(): React.ReactNode {
         };
         fetchLeads();
     }, [user]);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFilters(prev => ({ ...prev, [name]: value }));
+        setPage(0); // Reset to first page on filter change
+    };
+
+    const clearFilters = () => {
+        setFilters({ search: '', status: '', tier: '', source: '' });
+        setPage(0);
+    };
+
+    const sources = useMemo(() => {
+        if (!leads) return [];
+        return [...new Set(leads.map(lead => lead.source))].sort();
+    }, [leads]);
     
+    const filteredLeads = useMemo(() => {
+        if (!leads) return [];
+        const searchTerm = filters.search.toLowerCase();
+
+        return leads.filter(lead => {
+            const searchMatch = searchTerm
+                ? lead.name.toLowerCase().includes(searchTerm) ||
+                  lead.email.toLowerCase().includes(searchTerm) ||
+                  (lead.assignee && lead.assignee.name.toLowerCase().includes(searchTerm))
+                : true;
+
+            const statusMatch = filters.status ? lead.status === filters.status : true;
+            const tierMatch = filters.tier ? lead.tier === filters.tier : true;
+            const sourceMatch = filters.source ? lead.source === filters.source : true;
+            
+            return searchMatch && statusMatch && tierMatch && sourceMatch;
+        });
+    }, [leads, filters]);
+
     const sortedLeads = useMemo(() => {
-        if (!leads) return null;
-        const sortableItems = [...leads];
+        const sortableItems = [...filteredLeads];
         sortableItems.sort((a, b) => {
             const valA = getNestedValue(a, sortConfig.key);
             const valB = getNestedValue(b, sortConfig.key);
@@ -55,7 +101,12 @@ function LeadsPage(): React.ReactNode {
             return 0;
         });
         return sortableItems;
-    }, [leads, sortConfig]);
+    }, [filteredLeads, sortConfig]);
+
+    const paginatedLeads = useMemo(() => {
+        const startIndex = page * rowsPerPage;
+        return sortedLeads.slice(startIndex, startIndex + rowsPerPage);
+    }, [sortedLeads, page, rowsPerPage]);
 
     const requestSort = (key: string) => {
         let direction: SortDirection = 'ascending';
@@ -66,21 +117,19 @@ function LeadsPage(): React.ReactNode {
     };
 
     const handleAddClick = () => {
-        setIsModalOpen(true);
+        navigate('/acquisition/leads/new');
     };
 
     const handleEditClick = (lead: Lead) => {
         navigate(`/acquisition/leads/${lead.id}/edit`);
     };
 
-    const handleDeleteClick = (leadId: string) => {
-        setLeadToDelete(leadId);
+    const handleViewClick = (lead: Lead) => {
+        navigate(`/acquisition/leads/${lead.id}/view`);
     };
 
-    const handleSaveLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'assignee'> & { assigneeName: string }) => {
-        setIsModalOpen(false);
-        const newLead = await createLead(leadData);
-        setLeads(prevLeads => [newLead, ...prevLeads!]);
+    const handleDeleteClick = (leadId: string) => {
+        setLeadToDelete(leadId);
     };
     
     const confirmDelete = async () => {
@@ -90,6 +139,20 @@ function LeadsPage(): React.ReactNode {
                 setLeads(prevLeads => prevLeads!.filter(lead => lead.id !== leadToDelete));
             }
             setLeadToDelete(null);
+        }
+    };
+
+     const handleAnalyze = async (leadId: string) => {
+        setAnalyzingId(leadId);
+        try {
+            const updatedLead = await analyzeLead(leadId);
+            setLeads(prev => prev!.map(l => l.id === leadId ? updatedLead : l));
+            setAnalysisModalLead(updatedLead);
+            toast({ title: t('leadAnalyzedSuccess'), variant: 'success' });
+        } catch (error) {
+            toast({ title: t('leadAnalyzedError'), variant: 'destructive' });
+        } finally {
+            setAnalyzingId(null);
         }
     };
 
@@ -111,19 +174,71 @@ function LeadsPage(): React.ReactNode {
                     </Button>
                 </div>
             </div>
+
+            {/* Filter Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
+                <div className="relative lg:col-span-2">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search by name, email, or assignee..."
+                        name="search"
+                        value={filters.search}
+                        onChange={handleFilterChange}
+                        className="pl-8 w-full"
+                    />
+                </div>
+                <div className="relative">
+                    <ListFilter className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Select name="status" value={filters.status} onChange={handleFilterChange} className="pl-8">
+                        <option value="">All Statuses</option>
+                        {Object.values(LeadStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                    </Select>
+                </div>
+                 <div className="relative">
+                    <Signal className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Select name="tier" value={filters.tier} onChange={handleFilterChange} className="pl-8">
+                        <option value="">All Tiers</option>
+                        {Object.values(LeadTier).map(t => <option key={t} value={t}>{t}</option>)}
+                    </Select>
+                </div>
+                 <div className="relative">
+                    <Globe className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Select name="source" value={filters.source} onChange={handleFilterChange} className="pl-8">
+                        <option value="">All Sources</option>
+                        {sources.map(s => <option key={s} value={s}>{s}</option>)}
+                    </Select>
+                </div>
+                <Button variant="ghost" onClick={clearFilters} className="w-full sm:w-auto">
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Clear
+                </Button>
+            </div>
             
             <Card className="shadow-lg">
                 <CardContent className="pt-6">
-                    <LeadsTable leads={sortedLeads} onEdit={handleEditClick} onDelete={handleDeleteClick} requestSort={requestSort} sortConfig={sortConfig} />
+                    <LeadsTable 
+                        leads={paginatedLeads} 
+                        onView={handleViewClick}
+                        onEdit={handleEditClick} 
+                        onDelete={handleDeleteClick} 
+                        requestSort={requestSort} 
+                        sortConfig={sortConfig}
+                        onAnalyze={handleAnalyze}
+                        analyzingId={analyzingId}
+                        onShowAnalysis={setAnalysisModalLead}
+                    />
                 </CardContent>
+                 <Pagination
+                    count={filteredLeads.length}
+                    page={page}
+                    rowsPerPage={rowsPerPage}
+                    onPageChange={setPage}
+                    onRowsPerPageChange={(value) => {
+                        setRowsPerPage(value);
+                        setPage(0);
+                    }}
+                />
             </Card>
-
-            <LeadFormModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSave={handleSaveLead}
-                lead={null}
-            />
 
             <AlertDialog
                 isOpen={!!leadToDelete}
@@ -132,6 +247,14 @@ function LeadsPage(): React.ReactNode {
                 title="Are you sure?"
                 description="This action cannot be undone. This will permanently delete the lead."
             />
+            
+             {analysisModalLead && (
+                <LeadAiAnalysisModal
+                    isOpen={!!analysisModalLead}
+                    onClose={() => setAnalysisModalLead(null)}
+                    lead={analysisModalLead}
+                />
+            )}
         </div>
     );
 }

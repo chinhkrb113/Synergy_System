@@ -1,9 +1,7 @@
 
-
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Student, StudentStatus } from '../../../types';
+import { Student, StudentStatus, UserRole } from '../../../types';
 import {
   Table,
   TableHeader,
@@ -15,10 +13,10 @@ import {
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { Skeleton } from '../../../components/ui/Skeleton';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../../components/ui/DropdownMenu';
-import { MoreHorizontal } from 'lucide-react';
+import { Eye, FilePenLine, Trash2, Sparkles } from 'lucide-react';
 import { useI18n } from '../../../hooks/useI18n';
 import { cn } from '../../../lib/utils';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const statusColorMap: Record<StudentStatus, string> = {
     [StudentStatus.ACTIVE]: 'bg-green-500',
@@ -34,17 +32,16 @@ interface StudentsTableProps {
     onDelete: (studentId: string) => void;
     requestSort: (key: keyof Student) => void;
     sortConfig: SortConfig;
+    onAnalyze: (studentId: string) => void;
+    analyzingId: string | null;
 }
 
-const ProgressBar = ({ value }: { value: number }) => (
-    <div className="w-full bg-muted rounded-full h-2.5">
-        <div className="bg-primary h-2.5 rounded-full" style={{ width: `${value}%` }}></div>
-    </div>
-);
-
-export function StudentsTable({ students, onEdit, onDelete, requestSort, sortConfig }: StudentsTableProps): React.ReactNode {
+export function StudentsTable({ students, onEdit, onDelete, requestSort, sortConfig, onAnalyze, analyzingId }: StudentsTableProps): React.ReactNode {
     const { t } = useI18n();
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const isAdmin = user?.role === UserRole.ADMIN;
+
 
     const handleViewProfile = (studentId: string) => {
         navigate(`/learning/students/${studentId}`);
@@ -60,11 +57,13 @@ export function StudentsTable({ students, onEdit, onDelete, requestSort, sortCon
             <TableHeader>
                 <TableRow>
                     <TableHead onClick={() => requestSort('name')} isSorted={getSortDirection('name')}>{t('name')}</TableHead>
+                    <TableHead onClick={() => requestSort('email')} isSorted={getSortDirection('email')}>{t('email')}</TableHead>
                     <TableHead onClick={() => requestSort('course')} isSorted={getSortDirection('course')}>{t('course')}</TableHead>
-                    <TableHead onClick={() => requestSort('progress')} isSorted={getSortDirection('progress')}>{t('progress')}</TableHead>
+                    <TableHead onClick={() => requestSort('score')} isSorted={getSortDirection('score')}>{t('score')}</TableHead>
                     <TableHead onClick={() => requestSort('status')} isSorted={getSortDirection('status')}>{t('status')}</TableHead>
-                    <TableHead onClick={() => requestSort('joinDate')} isSorted={getSortDirection('joinDate')}>{t('joinDate')}</TableHead>
-                    <TableHead><span className="sr-only">{t('actions')}</span></TableHead>
+                    <TableHead onClick={() => requestSort('createdAt')} isSorted={getSortDirection('createdAt')}>{t('created')}</TableHead>
+                    <TableHead onClick={() => requestSort('updatedAt')} isSorted={getSortDirection('updatedAt')}>{t('updated')}</TableHead>
+                    <TableHead>{t('actions')}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -72,19 +71,18 @@ export function StudentsTable({ students, onEdit, onDelete, requestSort, sortCon
                     students.map(student => (
                         <TableRow key={student.id}>
                             <TableCell>
-                                <div className="flex items-center gap-3">
-                                    <img src={student.avatarUrl} alt={student.name} className="h-10 w-10 rounded-full" />
-                                    <div>
-                                        <div className="font-medium">{student.name}</div>
-                                        <div className="text-sm text-muted-foreground">{student.email}</div>
-                                    </div>
-                                </div>
+                                <div className="font-medium">{student.name}</div>
                             </TableCell>
+                            <TableCell>{student.email}</TableCell>
                             <TableCell>{student.course}</TableCell>
                             <TableCell>
                                 <div className="flex items-center gap-2">
-                                    <ProgressBar value={student.progress} />
-                                    <span className="text-sm font-medium">{student.progress}%</span>
+                                    <span className="font-semibold">{student.score ?? '-'}</span>
+                                    {student.aiAssessed && (
+                                        <span title="Score assessed by AI">
+                                            <Sparkles className="h-4 w-4 text-purple-400" />
+                                        </span>
+                                    )}
                                 </div>
                             </TableCell>
                             <TableCell>
@@ -93,32 +91,39 @@ export function StudentsTable({ students, onEdit, onDelete, requestSort, sortCon
                                     <span>{student.status}</span>
                                 </div>
                             </TableCell>
-                            <TableCell>{new Date(student.joinDate).toLocaleDateString()}</TableCell>
+                            <TableCell>{new Date(student.createdAt).toLocaleDateString()}</TableCell>
+                            <TableCell>{student.updatedAt ? new Date(student.updatedAt).toLocaleDateString() : '-'}</TableCell>
                             <TableCell>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon">
-                                            <MoreHorizontal className="h-4 w-4"/>
+                                <div className="flex items-center gap-0">
+                                    <Button variant="ghost" size="icon" title={t('viewProfile')} onClick={() => handleViewProfile(student.id)}>
+                                        <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" title={t('edit')} onClick={() => onEdit(student)}>
+                                        <FilePenLine className="h-4 w-4" />
+                                    </Button>
+                                    {isAdmin && (
+                                        <Button variant="ghost" size="icon" title={t('analyzeScoreWithAI')} onClick={() => onAnalyze(student.id)} disabled={analyzingId === student.id}>
+                                            <Sparkles className="h-4 w-4" />
                                         </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleViewProfile(student.id)}>{t('viewProfile')}</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => onEdit(student)}>{t('edit')}</DropdownMenuItem>
-                                        <DropdownMenuItem className="text-destructive" onClick={() => onDelete(student.id)}>{t('delete')}</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                    )}
+                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title={t('delete')} onClick={() => onDelete(student.id)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </TableCell>
                         </TableRow>
                     ))
                 ) : (
                     Array.from({ length: 10 }).map((_, i) => (
                         <TableRow key={i}>
-                           <TableCell><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-40" /></div></div></TableCell>
+                           <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                            <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                            <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                            <TableCell><Skeleton className="h-5 w-12" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                            <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                            <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                            <TableCell><div className="flex justify-end gap-2"><Skeleton className="h-8 w-8" /><Skeleton className="h-8 w-8" /><Skeleton className="h-8 w-8" /></div></TableCell>
                         </TableRow>
                     ))
                 )}

@@ -8,6 +8,8 @@ import { useToast } from '../hooks/useToast';
 import { getInterviewById, respondToInterview } from '../services/mockApi';
 import { Interview, InterviewStatus } from '../types';
 import { Calendar, MapPin, Building, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
+import { Textarea } from './ui/Textarea';
+import { Label } from './ui/Label';
 
 interface InterviewDetailsModalProps {
     isOpen: boolean;
@@ -21,12 +23,16 @@ function InterviewDetailsModal({ isOpen, onClose, interviewId }: InterviewDetail
     const [interview, setInterview] = useState<Interview | null>(null);
     const [loading, setLoading] = useState(true);
     const [isResponding, setIsResponding] = useState(false);
+    const [isDeclining, setIsDeclining] = useState(false);
+    const [declineReason, setDeclineReason] = useState('');
 
     useEffect(() => {
         const fetchInterview = async () => {
             if (isOpen && interviewId) {
                 setLoading(true);
                 setInterview(null);
+                setIsDeclining(false);
+                setDeclineReason('');
                 const data = await getInterviewById(interviewId);
                 setInterview(data);
                 setLoading(false);
@@ -39,19 +45,25 @@ function InterviewDetailsModal({ isOpen, onClose, interviewId }: InterviewDetail
         if (!interview) return;
         setIsResponding(true);
         try {
-            const updatedInterview = await respondToInterview(interview.id, status);
+            const updatedInterview = await respondToInterview(interview.id, status, declineReason);
             if (updatedInterview) {
                 setInterview(updatedInterview);
             }
             toast({ title: t('interviewResponseSuccess'), variant: 'success' });
+             if (status === InterviewStatus.ACCEPTED) {
+                onClose();
+            }
         } catch (error) {
              toast({ title: t('interviewResponseError'), variant: 'destructive' });
         } finally {
             setIsResponding(false);
+             if (status === InterviewStatus.DECLINED) {
+                setIsDeclining(false);
+            }
         }
     };
     
-    const renderStatusFooter = () => {
+    const renderFooter = () => {
         if (!interview || isResponding) {
              return (
                 <DialogFooter>
@@ -65,9 +77,17 @@ function InterviewDetailsModal({ isOpen, onClose, interviewId }: InterviewDetail
         
         switch (interview.status) {
             case InterviewStatus.PENDING:
+                if (isDeclining) {
+                    return (
+                        <DialogFooter>
+                            <Button variant="ghost" onClick={() => { setIsDeclining(false); setDeclineReason(''); }}>{t('cancel')}</Button>
+                            <Button variant="destructive" className="w-40" onClick={() => handleResponse(InterviewStatus.DECLINED)}>{t('confirmDecline')}</Button>
+                        </DialogFooter>
+                    );
+                }
                 return (
                     <DialogFooter>
-                        <Button variant="destructive" className="w-28" onClick={() => handleResponse(InterviewStatus.DECLINED)}>{t('decline')}</Button>
+                        <Button variant="destructive" className="w-28" onClick={() => setIsDeclining(true)}>{t('decline')}</Button>
                         <Button className="w-28" onClick={() => handleResponse(InterviewStatus.ACCEPTED)}>{t('accept')}</Button>
                     </DialogFooter>
                 );
@@ -90,7 +110,7 @@ function InterviewDetailsModal({ isOpen, onClose, interviewId }: InterviewDetail
                     </DialogFooter>
                 );
             default:
-                return null;
+                return <DialogFooter><Button variant="ghost" onClick={onClose}>Close</Button></DialogFooter>;
         }
     };
 
@@ -124,16 +144,28 @@ function InterviewDetailsModal({ isOpen, onClose, interviewId }: InterviewDetail
                            <MapPin className="h-4 w-4 text-muted-foreground" />
                            <span>{interview.location}</span>
                         </div>
-                         {interview.status === InterviewStatus.PENDING && (
+                         {interview.status === InterviewStatus.PENDING && !isDeclining && (
                             <div className="flex items-center gap-3 pt-2 mt-2 border-t">
                                 <HelpCircle className="h-4 w-4 text-muted-foreground" />
                                 <span className="font-semibold">{t('pendingResponse')}</span>
                             </div>
                          )}
+                         {interview.status === InterviewStatus.PENDING && isDeclining && (
+                             <div className="space-y-2 pt-4 mt-4 border-t">
+                                <Label htmlFor="declineReason">{t('declineReason')}</Label>
+                                <Textarea 
+                                    id="declineReason"
+                                    value={declineReason}
+                                    onChange={(e) => setDeclineReason(e.target.value)}
+                                    placeholder={t('declineReasonPlaceholder')}
+                                />
+                                <DialogDescription className="text-xs">{t('declineReasonShared')}</DialogDescription>
+                            </div>
+                         )}
                     </div>
                 )}
             </DialogContent>
-            {renderStatusFooter()}
+            {renderFooter()}
         </Dialog>
     );
 }

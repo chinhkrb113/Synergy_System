@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
@@ -13,6 +14,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/AuthContext';
 import MyTeamCard from './components/MyTeamCard';
 import MyMatchedJobs from './components/MyMatchedJobs';
+import { ProgressBar } from '../../components/ui/ProgressBar';
 
 function StudentProfilePage(): React.ReactNode {
     const { t } = useI18n();
@@ -67,7 +69,7 @@ function StudentProfilePage(): React.ReactNode {
 
     return (
         <div className="space-y-6">
-            {fromJobId && (
+            {fromJobId ? (
                 <Link
                     to={`/enterprise/jobs/${fromJobId}/matches`}
                     className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-2"
@@ -75,12 +77,20 @@ function StudentProfilePage(): React.ReactNode {
                     <ArrowLeft className="h-4 w-4" />
                     {t('backToMatches')}
                 </Link>
+            ) : (
+                 <Link
+                    to="/learning/students"
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-2"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to Students
+                </Link>
             )}
 
             {renderHeader()}
             
-            <div className="grid gap-6 lg:grid-cols-2">
-                 <Card className="shadow-lg">
+            <div className="grid gap-6 lg:grid-cols-3">
+                 <Card className="shadow-lg lg:col-span-2">
                     <CardHeader>
                         <CardTitle>{t('skillMap')}</CardTitle>
                         {!isOwnProfile && <CardDescription>{t('dynamicSkillMapDesc')}</CardDescription>}
@@ -89,23 +99,41 @@ function StudentProfilePage(): React.ReactNode {
                        {skillMap ? <SkillRadarChart data={skillMap} studentName={student?.name || 'Student'} /> : <Skeleton className="h-[400px]" />}
                     </CardContent>
                 </Card>
-                 <Card className="shadow-lg">
-                    <CardHeader>
-                        <CardTitle>{t('taskProgress')}</CardTitle>
-                        {!isOwnProfile && <CardDescription>Overview of assigned tasks and deadlines.</CardDescription>}
-                    </CardHeader>
-                    <CardContent>
-                       {studentId ? <StudentProgress studentId={studentId} /> : <Skeleton className="h-[300px]" />}
-                    </CardContent>
-                </Card>
-                
-                {isOwnProfile && studentId && (
-                    <>
-                        <MyTeamCard studentId={studentId} />
-                        <MyMatchedJobs studentId={studentId} />
-                    </>
-                )}
+                <div className="space-y-6">
+                    <Card className="shadow-lg">
+                        <CardHeader>
+                            <CardTitle>{t('overallProgress')}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {student ? (
+                                <div className="space-y-2">
+                                    <div className="flex justify-between font-semibold">
+                                        <span>{student.course}</span>
+                                        <span className="text-primary">{student.progress}%</span>
+                                    </div>
+                                    <ProgressBar value={student.progress} />
+                                </div>
+                            ) : <Skeleton className="h-10" />}
+                        </CardContent>
+                    </Card>
+                    <Card className="shadow-lg">
+                        <CardHeader>
+                            <CardTitle>{t('taskProgress')}</CardTitle>
+                            {!isOwnProfile && <CardDescription>Overview of assigned tasks and deadlines.</CardDescription>}
+                        </CardHeader>
+                        <CardContent>
+                        {studentId ? <StudentProgress studentId={studentId} /> : <Skeleton className="h-[300px]" />}
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
+
+            {isOwnProfile && studentId && (
+                <div className="grid gap-6 lg:grid-cols-2 mt-6">
+                    <MyTeamCard studentId={studentId} />
+                    <MyMatchedJobs studentId={studentId} />
+                </div>
+            )}
         </div>
     );
 }

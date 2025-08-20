@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Input } from '../../components/ui/Input';
 import { Label } from '../../components/ui/Label';
 import { Spinner } from '../../components/ui/Spinner';
+import { Eye, EyeOff } from 'lucide-react';
 
 const mockAccounts = [
     'admin@example.com',
@@ -22,6 +24,7 @@ function LoginPage(): React.ReactNode {
     const [password, setPassword] = useState('Passw0rd!'); // Dummy password
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -69,13 +72,29 @@ function LoginPage(): React.ReactNode {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="password">{t('password')}</Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                required
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                            />
+                            <div className="relative">
+                                <Input
+                                    id="password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    required
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 text-muted-foreground"
+                                    onClick={() => setShowPassword(prev => !prev)}
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
+                                >
+                                    {showPassword ? (
+                                        <EyeOff className="h-4 w-4" />
+                                    ) : (
+                                        <Eye className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </div>
                         </div>
                          {error && <p className="text-sm text-destructive">{error}</p>}
                     </CardContent>

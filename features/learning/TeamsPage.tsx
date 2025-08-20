@@ -3,21 +3,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
-import { Skeleton } from '../../components/ui/Skeleton';
 import { useI18n } from '../../hooks/useI18n';
-import { getTeams, createTeam, deleteTeam } from '../../services/mockApi';
+import { getTeams, deleteTeam } from '../../services/mockApi';
 import { Team, TeamStatus } from '../../types';
-import { PlusCircle, MoreHorizontal } from 'lucide-react';
-import TeamFormModal from './components/TeamFormModal';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../../components/ui/DropdownMenu';
+import { PlusCircle, Search, ListFilter, XCircle } from 'lucide-react';
 import { AlertDialog } from '../../components/ui/AlertDialog';
-
-const statusColorMap: Record<TeamStatus, string> = {
-    'Planning': 'bg-yellow-500',
-    'In Progress': 'bg-blue-500',
-    'Completed': 'bg-green-500',
-};
+import { TeamsTable } from './components/TeamsTable';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
+import { Pagination } from '../../components/Pagination';
 
 type SortDirection = 'ascending' | 'descending';
 type SortConfig = { key: string; direction: SortDirection };
@@ -26,13 +20,19 @@ const getNestedValue = (obj: any, path: string) => {
   return path.split('.').reduce((o, k) => (o || {})[k], obj);
 };
 
+const teamStatuses: TeamStatus[] = ['Planning', 'In Progress', 'Completed'];
+
 function TeamsPage(): React.ReactNode {
     const { t } = useI18n();
     const navigate = useNavigate();
     const [teams, setTeams] = useState<Team[] | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
-    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'ascending' });
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'createdAt', direction: 'descending' });
+    
+    // Filters and pagination state
+    const [filters, setFilters] = useState({ search: '', status: '' });
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
 
     useEffect(() => {
         const fetchTeams = async () => {
@@ -42,18 +42,49 @@ function TeamsPage(): React.ReactNode {
         fetchTeams();
     }, []);
 
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFilters(prev => ({ ...prev, [name]: value }));
+        setPage(0);
+    };
+
+    const clearFilters = () => {
+        setFilters({ search: '', status: '' });
+        setPage(0);
+    };
+
+    const filteredTeams = useMemo(() => {
+        if (!teams) return [];
+        const searchTerm = filters.search.toLowerCase();
+
+        return teams.filter(team => {
+            const searchMatch = searchTerm
+                ? team.name.toLowerCase().includes(searchTerm) ||
+                  team.project.toLowerCase().includes(searchTerm)
+                : true;
+
+            const statusMatch = filters.status ? team.status === filters.status : true;
+            
+            return searchMatch && statusMatch;
+        });
+    }, [teams, filters]);
+
     const sortedTeams = useMemo(() => {
-        if (!teams) return null;
-        const sortableItems = [...teams];
+        const sortableItems = [...filteredTeams];
         sortableItems.sort((a, b) => {
-            const valA = sortConfig.key === 'members.length' ? a.members.length : getNestedValue(a, sortConfig.key);
-            const valB = sortConfig.key === 'members.length' ? b.members.length : getNestedValue(b, sortConfig.key);
+            const valA = sortConfig.key === 'members' ? a.members.length : getNestedValue(a, sortConfig.key);
+            const valB = sortConfig.key === 'members' ? b.members.length : getNestedValue(b, sortConfig.key);
             if (valA < valB) return sortConfig.direction === 'ascending' ? -1 : 1;
             if (valA > valB) return sortConfig.direction === 'ascending' ? 1 : -1;
             return 0;
         });
         return sortableItems;
-    }, [teams, sortConfig]);
+    }, [filteredTeams, sortConfig]);
+
+     const paginatedTeams = useMemo(() => {
+        const startIndex = page * rowsPerPage;
+        return sortedTeams.slice(startIndex, startIndex + rowsPerPage);
+    }, [sortedTeams, page, rowsPerPage]);
 
     const requestSort = (key: string) => {
         let direction: SortDirection = 'ascending';
@@ -63,13 +94,12 @@ function TeamsPage(): React.ReactNode {
         setSortConfig({ key, direction });
     };
 
-    const getSortDirection = (key: string) => {
-        if (sortConfig.key !== key) return false;
-        return sortConfig.direction;
+    const handleAddClick = () => {
+        navigate('/learning/teams/new');
     };
 
-    const handleAddClick = () => {
-        setIsModalOpen(true);
+    const handleViewClick = (team: Team) => {
+        navigate(`/learning/teams/${team.id}`);
     };
 
     const handleEditClick = (team: Team) => {
@@ -88,12 +118,6 @@ function TeamsPage(): React.ReactNode {
         }
     };
 
-    const handleSaveTeam = async (teamData: Omit<Team, 'id'|'leader'|'members'> & { memberIds: string[] }) => {
-        const newTeam = await createTeam(teamData);
-        setTeams(prev => prev ? [newTeam, ...prev] : [newTeam]);
-        setIsModalOpen(false);
-    };
-
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -106,83 +130,53 @@ function TeamsPage(): React.ReactNode {
                     {t('createTeam')}
                 </Button>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                <div className="relative lg:col-span-2">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search by name or project..."
+                        name="search"
+                        value={filters.search}
+                        onChange={handleFilterChange}
+                        className="pl-8 w-full"
+                    />
+                </div>
+                <div className="relative">
+                    <ListFilter className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Select name="status" value={filters.status} onChange={handleFilterChange} className="pl-8">
+                        <option value="">All Statuses</option>
+                        {teamStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                    </Select>
+                </div>
+                <Button variant="ghost" onClick={clearFilters} className="w-full sm:w-auto">
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Clear
+                </Button>
+            </div>
+
             <Card className="shadow-lg">
                 <CardContent className="pt-6">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead onClick={() => requestSort('name')} isSorted={getSortDirection('name')}>Team Name</TableHead>
-                                <TableHead onClick={() => requestSort('project')} isSorted={getSortDirection('project')}>Project</TableHead>
-                                <TableHead onClick={() => requestSort('status')} isSorted={getSortDirection('status')}>Status</TableHead>
-                                <TableHead onClick={() => requestSort('members.length')} isSorted={getSortDirection('members.length')}>Members</TableHead>
-                                <TableHead><span className="sr-only">Actions</span></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {sortedTeams ? sortedTeams.map(team => (
-                                <TableRow key={team.id}>
-                                    <TableCell className="font-semibold">{team.name}</TableCell>
-                                    <TableCell>{team.project}</TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`h-2 w-2 rounded-full ${statusColorMap[team.status]}`}></span>
-                                            <span>{team.status}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center">
-                                            {team.members.slice(0, 5).map((member, index) => (
-                                                <img 
-                                                    key={member.id} 
-                                                    src={member.avatarUrl} 
-                                                    alt={member.name} 
-                                                    className="h-8 w-8 rounded-full border-2 border-background"
-                                                    style={{ marginLeft: index > 0 ? '-10px' : 0, zIndex: team.members.length - index }}
-                                                    title={member.name}
-                                                />
-                                            ))}
-                                             {team.members.length > 5 && (
-                                                <div className="h-8 w-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs font-semibold" style={{ marginLeft: '-10px', zIndex: 0 }}>
-                                                    +{team.members.length - 5}
-                                                </div>
-                                            )}
-                                            <span className="ml-2 text-sm text-muted-foreground">({team.members.length})</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon">
-                                                    <MoreHorizontal className="h-4 w-4"/>
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleEditClick(team)}>{t('edit')}</DropdownMenuItem>
-                                                <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(team)}>{t('delete')}</DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            )) : Array.from({ length: 3 }).map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                                    <TableCell><Skeleton className="h-8 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                    <TeamsTable 
+                        teams={paginatedTeams}
+                        onView={handleViewClick}
+                        onEdit={handleEditClick} 
+                        onDelete={handleDeleteClick} 
+                        requestSort={requestSort} 
+                        sortConfig={sortConfig}
+                    />
                 </CardContent>
+                 <Pagination
+                    count={filteredTeams.length}
+                    page={page}
+                    rowsPerPage={rowsPerPage}
+                    onPageChange={setPage}
+                    onRowsPerPageChange={(value) => {
+                        setRowsPerPage(value);
+                        setPage(0);
+                    }}
+                />
             </Card>
-
-            <TeamFormModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSave={handleSaveTeam}
-                team={null}
-            />
             
             <AlertDialog
                 isOpen={!!teamToDelete}

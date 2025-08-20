@@ -40,7 +40,7 @@ function TeamDetailPage() {
             setLoading(true);
             const data = await getTeamById(teamId);
             setTeam(data);
-             if (user?.role === UserRole.MENTOR) {
+             if (user?.role === UserRole.MENTOR || user?.role === UserRole.ADMIN) {
                 const tasks = await getTasksForTeam(teamId);
                 setTeamTasks(tasks);
             }
@@ -114,11 +114,11 @@ function TeamDetailPage() {
                         <p className="text-muted-foreground">{t('teamDetails')}</p>
                     </div>
                      <div className="flex items-center gap-2">
-                        {user?.role === UserRole.MENTOR && (
-                            <>
-                                <Button variant="outline" onClick={() => navigate(`/learning/teams/${team.id}/edit`)}>{t('editTeam')}</Button>
+                        {(user?.role === UserRole.MENTOR || user?.id === team?.leader.id) && (
+                            <div className="flex items-center gap-2">
+                                {user?.role === UserRole.MENTOR && <Button variant="outline" onClick={() => navigate(`/learning/teams/${team.id}/edit`)}>{t('editTeam')}</Button>}
                                 <Button onClick={() => setAssignTaskOpen(true)}>{t('assignTask')}</Button>
-                            </>
+                            </div>
                         )}
                         <div className={cn("flex items-center gap-2 font-semibold p-2 rounded-md bg-muted", statusColor)}>
                             <StatusIcon className="h-5 w-5"/>
@@ -168,7 +168,7 @@ function TeamDetailPage() {
                 <TeamTasksList teamId={teamId} studentId={user.id} />
             )}
             
-            {user?.role === UserRole.MENTOR && teamTasks && (
+            {(user?.role === UserRole.MENTOR || user?.role === UserRole.ADMIN) && teamTasks && (
                 <MentorTeamTasksList tasks={teamTasks} />
             )}
             

@@ -1,8 +1,6 @@
-
-
 import React from 'react';
 import { NavItem, UserRole } from './types';
-import { LayoutDashboard, Users, GraduationCap, Briefcase, Settings, Building, Group, BarChart3, Handshake, Building2, UserCog } from 'lucide-react';
+import { LayoutDashboard, Users, GraduationCap, Briefcase, Settings, Building, Group, BarChart3, Handshake, Building2, UserCog, Calendar, ListChecks } from 'lucide-react';
 
 export const USER_ROLES: UserRole[] = Object.values(UserRole);
 
@@ -24,6 +22,8 @@ export const NAV_ITEMS: NavItem[] = [
 
   // Enterprise
   { path: '/enterprise/jobs', labelKey: 'jobs', icon: Building, roles: [UserRole.ADMIN, UserRole.COMPANY_USER] },
+  { path: '/enterprise/interviews', labelKey: 'interviews', icon: Calendar, roles: [UserRole.COMPANY_USER] },
+  { path: '/enterprise/interview-list', labelKey: 'interviewList', icon: ListChecks, roles: [UserRole.COMPANY_USER] },
   { path: '/enterprise/student-directory', labelKey: 'studentDirectory', icon: Users, roles: [UserRole.COMPANY_USER] },
   { path: '/enterprise/all-jobs', labelKey: 'allJobs', icon: Briefcase, roles: [UserRole.STUDENT] },
   { path: '/enterprise/jd-parser', labelKey: 'jdParser', icon: Briefcase, roles: [UserRole.ADMIN, UserRole.MENTOR, UserRole.COMPANY_USER] },

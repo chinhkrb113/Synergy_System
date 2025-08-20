@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { Button } from './ui/Button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from './ui/DropdownMenu';
@@ -13,6 +14,7 @@ import InterviewDetailsModal from './InterviewDetailsModal';
 function NotificationBell() {
     const { user } = useAuth();
     const { t } = useI18n();
+    const navigate = useNavigate();
     const [notifications, setNotifications] = useState<Notification[] | null>(null);
     const [unreadCount, setUnreadCount] = useState(0);
     const [selectedInterviewId, setSelectedInterviewId] = useState<string | null>(null);
@@ -33,11 +35,14 @@ function NotificationBell() {
     }, [user]);
 
     const handleNotificationClick = (notification: Notification) => {
-        if (notification.interviewId) {
-            setSelectedInterviewId(notification.interviewId);
-        }
         if (!notification.isRead) {
             markNotificationAsRead(notification.id).then(() => fetchNotifications());
+        }
+
+        if (notification.link) {
+            navigate(notification.link);
+        } else if (notification.interviewId) {
+            setSelectedInterviewId(notification.interviewId);
         }
     };
     

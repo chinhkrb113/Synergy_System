@@ -1,40 +1,98 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Search, XCircle } from 'lucide-react';
 import { useI18n } from '../../hooks/useI18n';
-import { getAgents, createAgent, updateUser, deleteUser } from '../../services/mockApi';
+import { getAgents, deleteUser } from '../../services/mockApi';
 import { User } from '../../types';
 import { AlertDialog } from '../../components/ui/AlertDialog';
 import { useToast } from '../../hooks/useToast';
 import AgentsTable from './components/AgentsTable';
-import AgentFormModal from './components/AgentFormModal';
+import { Input } from '../../components/ui/Input';
+import { Pagination } from '../../components/Pagination';
+
+
+type SortDirection = 'ascending' | 'descending';
+type SortConfig = { key: keyof User; direction: SortDirection };
 
 function AgentsPage() {
     const { t } = useI18n();
+    const navigate = useNavigate();
     const { toast } = useToast();
     const [agents, setAgents] = useState<User[] | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingAgent, setEditingAgent] = useState<User | null>(null);
     const [agentToDelete, setAgentToDelete] = useState<User | null>(null);
-
-    const fetchAgents = async () => {
-        const data = await getAgents();
-        setAgents(data);
-    };
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'createdAt', direction: 'descending' });
+    
+    // Filters and pagination state
+    const [filters, setFilters] = useState({ search: '' });
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    
 
     useEffect(() => {
+        const fetchAgents = async () => {
+            const data = await getAgents();
+            setAgents(data);
+        };
         fetchAgents();
     }, []);
 
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFilters({ search: e.target.value });
+        setPage(0);
+    };
+
+    const clearFilters = () => {
+        setFilters({ search: '' });
+        setPage(0);
+    };
+
+    const filteredAgents = useMemo(() => {
+        if (!agents) return [];
+        const searchTerm = filters.search.toLowerCase();
+
+        return agents.filter(agent =>
+            agent.name.toLowerCase().includes(searchTerm) ||
+            agent.email.toLowerCase().includes(searchTerm)
+        );
+    }, [agents, filters]);
+
+    const sortedAgents = useMemo(() => {
+        const sortableItems = [...filteredAgents];
+        sortableItems.sort((a, b) => {
+            const valA = a[sortConfig.key] || '';
+            const valB = b[sortConfig.key] || '';
+            if (valA < valB) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (valA > valB) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+        return sortableItems;
+    }, [filteredAgents, sortConfig]);
+
+    const paginatedAgents = useMemo(() => {
+        const startIndex = page * rowsPerPage;
+        return sortedAgents.slice(startIndex, startIndex + rowsPerPage);
+    }, [sortedAgents, page, rowsPerPage]);
+
+    const requestSort = (key: keyof User) => {
+        let direction: SortDirection = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+
     const handleAddClick = () => {
-        setEditingAgent(null);
-        setIsModalOpen(true);
+        navigate('/admin/agents/new');
+    };
+    
+    const handleViewClick = (agent: User) => {
+        navigate(`/admin/agents/${agent.id}/view`);
     };
 
     const handleEditClick = (agent: User) => {
-        setEditingAgent(agent);
-        setIsModalOpen(true);
+        navigate(`/admin/agents/${agent.id}/edit`);
     };
 
     const handleDeleteClick = (agent: User) => {
@@ -50,26 +108,6 @@ function AgentsPage() {
         }
     };
 
-    const handleSaveAgent = async (data: Omit<User, 'id' | 'role' | 'avatarUrl'>) => {
-        try {
-            if (editingAgent) {
-                // Update
-                const updated = await updateUser(editingAgent.id, data);
-                setAgents(prev => prev!.map(a => a.id === updated.id ? updated : a));
-                toast({ title: 'Success', description: `Agent "${updated.name}" updated.`, variant: 'success' });
-            } else {
-                // Create
-                const newAgent = await createAgent(data);
-                setAgents(prev => [newAgent, ...prev!]);
-                toast({ title: 'Success', description: `Agent "${newAgent.name}" created.`, variant: 'success' });
-            }
-            setIsModalOpen(false);
-            setEditingAgent(null);
-        } catch (error: any) {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        }
-    };
-
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -82,18 +120,45 @@ function AgentsPage() {
                     {t('addAgent')}
                 </Button>
             </div>
+
+            <div className="flex items-center gap-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search by name or email..."
+                        value={filters.search}
+                        onChange={handleFilterChange}
+                        className="pl-8 w-full"
+                    />
+                </div>
+                <Button variant="ghost" onClick={clearFilters}>
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Clear
+                </Button>
+            </div>
+
             <Card className="shadow-lg">
                 <CardContent className="pt-6">
-                    <AgentsTable agents={agents} onEdit={handleEditClick} onDelete={handleDeleteClick} />
+                    <AgentsTable 
+                        agents={paginatedAgents} 
+                        onView={handleViewClick}
+                        onEdit={handleEditClick} 
+                        onDelete={handleDeleteClick}
+                        sortConfig={sortConfig}
+                        requestSort={requestSort}
+                    />
                 </CardContent>
+                 <Pagination
+                    count={filteredAgents.length}
+                    page={page}
+                    rowsPerPage={rowsPerPage}
+                    onPageChange={setPage}
+                    onRowsPerPageChange={(value) => {
+                        setRowsPerPage(value);
+                        setPage(0);
+                    }}
+                />
             </Card>
-
-            <AgentFormModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSave={handleSaveAgent}
-                agent={editingAgent}
-            />
             
             <AlertDialog
                 isOpen={!!agentToDelete}

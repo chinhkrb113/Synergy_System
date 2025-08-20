@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../../components/ui/Dialog';
 import { Button } from '../../../components/ui/Button';
@@ -21,7 +22,7 @@ function JobDetailsModal({ isOpen, onClose, job }: JobDetailsModalProps) {
             <DialogHeader>
                 <DialogTitle>{job.title}</DialogTitle>
                 <DialogDescription>
-                    {job.companyName} - Posted on {new Date(job.postedDate).toLocaleDateString()}
+                    {job.companyName} - Posted on {new Date(job.createdAt).toLocaleDateString()}
                 </DialogDescription>
             </DialogHeader>
             <DialogContent>

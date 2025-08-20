@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
@@ -24,7 +25,7 @@ function AllJobsPage() {
     const [jobs, setJobs] = useState<JobPosting[] | null>(null);
     const [selectedJob, setSelectedJob] = useState<JobPosting | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'postedDate', direction: 'descending' });
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'createdAt', direction: 'descending' });
 
     useEffect(() => {
         const fetchJobs = async () => {
@@ -38,10 +39,12 @@ function AllJobsPage() {
         if (!jobs) return null;
         const sortableItems = [...jobs];
         sortableItems.sort((a, b) => {
-            if (a[sortConfig.key] < b[sortConfig.key]) {
+            const valA = a[sortConfig.key] || '';
+            const valB = b[sortConfig.key] || '';
+            if (valA < valB) {
                 return sortConfig.direction === 'ascending' ? -1 : 1;
             }
-            if (a[sortConfig.key] > b[sortConfig.key]) {
+            if (valA > valB) {
                 return sortConfig.direction === 'ascending' ? 1 : -1;
             }
             return 0;
@@ -81,7 +84,7 @@ function AllJobsPage() {
                                 <TableHead onClick={() => requestSort('title')} isSorted={getSortDirection('title')}>{t('jobTitle')}</TableHead>
                                 <TableHead onClick={() => requestSort('companyName')} isSorted={getSortDirection('companyName')}>{t('company')}</TableHead>
                                 <TableHead onClick={() => requestSort('status')} isSorted={getSortDirection('status')}>{t('status')}</TableHead>
-                                <TableHead onClick={() => requestSort('postedDate')} isSorted={getSortDirection('postedDate')}>{t('postedDate')}</TableHead>
+                                <TableHead onClick={() => requestSort('createdAt')} isSorted={getSortDirection('createdAt')}>{t('postedDate')}</TableHead>
                                 <TableHead><span className="sr-only">{t('actions')}</span></TableHead>
                             </TableRow>
                         </TableHeader>
@@ -96,8 +99,8 @@ function AllJobsPage() {
                                             <span>{job.status}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell>{new Date(job.postedDate).toLocaleDateString()}</TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell>{new Date(job.createdAt).toLocaleDateString()}</TableCell>
+                                    <TableCell>
                                         <Button variant="outline" size="sm" onClick={() => handleViewDetails(job)}>
                                             {t('viewDetails')}
                                         </Button>
