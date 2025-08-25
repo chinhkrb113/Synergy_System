@@ -2,16 +2,16 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Card, CardContent } from '../../../components/ui/Card';
-import { Skeleton } from '../../../components/ui/Skeleton';
-import { useI18n } from '../../../hooks/useI18n';
-import { useAuth } from '../../../contexts/AuthContext';
-import { getInterviewsForCompany } from '../../../services/mockApi';
-import { Interview, InterviewStatus } from '../../../types';
+import { Card, CardContent } from '../../components/ui/Card';
+import { Skeleton } from '../../components/ui/Skeleton';
+import { useI18n } from '../../hooks/useI18n';
+import { useAuth } from '../../contexts/AuthContext';
+import { getInterviewsForCompany } from '../../services/mockApi';
+import { Interview, InterviewStatus } from '../../types';
 import { ArrowLeft } from 'lucide-react';
-import { Button } from '../../../components/ui/Button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/Table';
-import { Badge } from '../../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
+import { Badge } from '../../components/ui/Badge';
 
 const statusVariantMap: Record<InterviewStatus, 'success' | 'destructive' | 'secondary' | 'warning' | 'default'> = {
     [InterviewStatus.PENDING]: 'warning',
