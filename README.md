@@ -56,53 +56,6 @@ A modern, scalable **CRM** platform built as a **microservices** monorepo. The s
 
 ---
 
-## Architecture
-
-> High‑level component view of the monorepo and runtime services.
-
-```mermaid
-flowchart LR
-  subgraph Client
-    U[User] --> W[Next.js Web App]
-  end
-
-  W --> G[API Gateway (NestJS)]
-  G <--> NATS[(NATS Event Bus)]
-  G <--> R[(Redis Cache)]
-
-  subgraph Services
-    A[acquisition-svc\nLeads & Conversations]
-    L[learning-svc\nTraining (placeholder)]
-    E[enterprise-svc\nEnterprise (placeholder)]
-    O[ops-svc\nOps/Monitoring (placeholder)]
-  end
-  G --> A
-  G --> L
-  G --> E
-  G --> O
-  A <--> NATS
-  L <--> NATS
-  E <--> NATS
-  O <--> NATS
-
-  subgraph Data
-    M[(MySQL 8)]
-    S[(MinIO Object Storage)]
-  end
-  A <--> M
-  L <--> M
-  E <--> M
-  O <--> M
-  G <--> S
-
-  subgraph Observability
-    B[Metabase]
-  end
-  B --> M
-```
-
----
-
 ## Tech Stack
 
 **Frontend**: Next.js 14, React 18, TypeScript, TailwindCSS, shadcn/ui, TanStack Query, React Hook Form + Zod, Framer Motion, Recharts  
